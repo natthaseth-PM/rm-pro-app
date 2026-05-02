@@ -8,6 +8,7 @@ import Login from './views/Login.vue'
 import Layout from './views/Layout.vue'
 import Pos from './views/Pos.vue'
 import Customer from './views/Customer.vue'
+import Kitchen from './views/Kitchen.vue'
 
 // กำหนดเส้นทาง (Routes)
 const routes = [
@@ -18,7 +19,8 @@ const routes = [
     component: Layout,
     children: [
       { path: '', redirect: '/pos' }, // ถ้าเข้าหน้าแรก ให้เด้งไป /pos เลย
-      { path: 'pos', name: 'Pos', component: Pos }
+      { path: 'pos', name: 'Pos', component: Pos },
+      { path: 'kitchen', name: 'Kitchen', component: Kitchen }
     ]
   }
 ]

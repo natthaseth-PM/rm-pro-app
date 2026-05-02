@@ -2,6 +2,7 @@
   <div class="h-full flex flex-col lg:flex-row overflow-hidden relative">
     
     <div class="flex-1 flex flex-col min-w-0 bg-gray-100">
+      
       <div class="bg-white shadow-sm px-6 py-3 flex gap-4 overflow-x-auto no-scrollbar shrink-0">
         <button @click="selectedCategory = 'All'" :class="['px-6 py-2 rounded-full font-medium whitespace-nowrap transition-all', selectedCategory === 'All' ? 'bg-primary text-white shadow-lg' : 'bg-gray-100 text-gray-600 hover:bg-gray-200']">ทั้งหมด</button>
         <button v-for="cat in availableCategories" :key="cat" @click="selectedCategory = cat" :class="['px-6 py-2 rounded-full font-medium whitespace-nowrap transition-all', selectedCategory === cat ? 'bg-primary text-white shadow-lg' : 'bg-gray-100 text-gray-600 hover:bg-gray-200']">{{ cat }}</button>
@@ -41,9 +42,9 @@
             <div class="w-10 h-10 rounded-full flex items-center justify-center shrink-0" :class="selectedTable ? 'bg-green-500 text-white shadow-md' : 'bg-gray-200 text-gray-500'">
               <i class="fa-solid fa-chair text-lg"></i>
             </div>
-            <div class="text-left">
+            <div class="text-left min-w-0">
               <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wide">โต๊ะที่เลือก</p>
-              <p class="font-bold text-gray-800" :class="selectedTable ? 'text-base' : 'text-sm'">{{ selectedTable ? selectedTable.table_name : 'กดเลือกโต๊ะ' }}</p>
+              <p class="font-bold text-gray-800 truncate" :class="selectedTable ? 'text-base' : 'text-sm'">{{ selectedTable ? selectedTable.table_name : 'กดเลือกโต๊ะ' }}</p>
             </div>
           </div>
           <i class="fa-solid fa-chevron-right text-gray-300 group-hover:text-primary"></i>
@@ -52,6 +53,11 @@
         <button @click="generateQR" :disabled="!selectedTable" class="w-16 bg-white border-2 border-dashed border-blue-200 hover:border-blue-500 hover:bg-blue-50 text-blue-500 disabled:opacity-50 disabled:bg-gray-100 disabled:border-gray-200 disabled:text-gray-300 rounded-xl flex flex-col items-center justify-center transition-all active:scale-95 group shrink-0">
           <i class="fa-solid fa-qrcode text-xl group-hover:scale-110 transition-transform"></i>
           <span class="text-[10px] font-bold mt-1 uppercase">QR โต๊ะ</span>
+        </button>
+
+        <button v-if="selectedTable?.status === 'Occupied'" @click="openCheckout" class="w-16 bg-white border-2 border-dashed border-green-200 hover:border-green-500 hover:bg-green-50 text-green-600 rounded-xl flex flex-col items-center justify-center transition-all active:scale-95 group shrink-0">
+          <i class="fa-solid fa-file-invoice-dollar text-xl group-hover:scale-110 transition-transform"></i>
+          <span class="text-[10px] font-bold mt-1 uppercase">เช็คบิล</span>
         </button>
       </div>
 
@@ -187,22 +193,19 @@ const sendOrderToKitchen = async () => {
   try {
     let orderId;
 
-    // 1. ตรวจสอบว่าโต๊ะนี้มีบิล (Order) ที่ยังเปิดอยู่ (Open) หรือไม่
     const { data: existingOrder, error: checkError } = await supabase
       .from('orders')
       .select('id, total_amount')
       .eq('table_id', selectedTable.value.id)
       .eq('status', 'Open')
-      .maybeSingle() // หา 1 แถว หรือไม่มีเลยก็ได้
+      .maybeSingle()
 
     if (existingOrder) {
       orderId = existingOrder.id
-      // อัปเดตยอดรวมบิลเดิม
       await supabase.from('orders').update({
         total_amount: Number(existingOrder.total_amount) + cartTotal.value
       }).eq('id', orderId)
     } else {
-      // สร้างบิลใหม่
       const { data: newOrder, error: insertOrderError } = await supabase.from('orders').insert({
         table_id: selectedTable.value.id,
         total_amount: cartTotal.value,
@@ -212,11 +215,11 @@ const sendOrderToKitchen = async () => {
       if (insertOrderError) throw insertOrderError
       orderId = newOrder.id
 
-      // เปลี่ยนสถานะโต๊ะเป็น 'มีลูกค้า' (Occupied)
       await supabase.from('tables').update({ status: 'Occupied' }).eq('id', selectedTable.value.id)
+      // อัปเดตสถานะโต๊ะในหน้าจอทันที
+      selectedTable.value.status = 'Occupied'
     }
 
-    // 2. บันทึกรายการอาหารเข้าครัว (Order Details)
     const detailsToInsert = cart.value.map(item => ({
       order_id: orderId,
       menu_id: item.id,
@@ -230,7 +233,6 @@ const sendOrderToKitchen = async () => {
     const { error: detailsError } = await supabase.from('order_details').insert(detailsToInsert)
     if (detailsError) throw detailsError
 
-    // 3. สำเร็จ เคลียร์ตะกร้า
     Swal.fire({ icon: 'success', title: 'ส่งออเดอร์เข้าครัวแล้ว!', toast: true, position: 'top-end', showConfirmButton: false, timer: 2000 })
     cart.value = []
 
@@ -242,15 +244,37 @@ const sendOrderToKitchen = async () => {
   }
 }
 
-// 📱 ฟังก์ชันสร้างและแสดง QR Code
+// 🖨️ ฟังก์ชันจัดหน้าเว็บสำหรับเครื่องปริ้นท์กระดาษความร้อน (80mm)
+const printThermal = (title, subtitle, imgUrl) => {
+  const printWindow = window.open('', '', 'width=400,height=600')
+  printWindow.document.write(`
+    <html><head><title>Print QR</title>
+    <style>
+      @page { margin: 0; size: 80mm auto; }
+      body { font-family: 'Kanit', sans-serif; width: 80mm; margin: 0 auto; padding: 15px; text-align: center; color: #000; box-sizing: border-box; }
+      h2 { margin: 0 0 5px 0; font-size: 26px; font-weight: 900; }
+      p { margin: 0 0 10px 0; font-size: 16px; font-weight: bold; }
+      img { width: 220px; height: 220px; margin: 10px auto; display: block; }
+      .footer { margin-top: 15px; border-top: 2px dashed #000; padding-top: 10px; font-size: 14px; font-weight: bold; }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;700;900&display=swap" rel="stylesheet">
+    </head><body>
+      <h2>RM Pro</h2>
+      <p>สั่งอาหารผ่านมือถือ (Self-Order)</p>
+      <h2 style="font-size: 36px; border: 3px solid #000; padding: 5px; margin-top: 10px; border-radius: 10px;">${title}</h2>
+      <img src="${imgUrl}" onload="window.print(); window.close();" />
+      <p>${subtitle}</p>
+      <div class="footer">ขอบคุณที่ใช้บริการครับ</div>
+    </body></html>
+  `)
+  printWindow.document.close()
+}
+
+// 📱 ฟังก์ชันสร้างป๊อปอัป QR Code
 const generateQR = () => {
   if (!selectedTable.value) return
-
-  // สร้าง URL สำหรับหน้าลูกค้า (อ้างอิงจาก Domain ปัจจุบัน)
   const baseUrl = window.location.origin
   const customerUrl = `${baseUrl}/customer?table_id=${selectedTable.value.id}&table_name=${encodeURIComponent(selectedTable.value.table_name)}`
-  
-  // ใช้ API สร้างรูป QR Code
   const qrImageSrc = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(customerUrl)}&margin=10`
 
   const htmlStr = `
@@ -258,26 +282,71 @@ const generateQR = () => {
       <div class="w-full bg-orange-50 rounded-2xl p-4 mb-6 border border-orange-100 flex flex-col items-center justify-center">
         <p class="text-sm font-bold text-orange-500 uppercase tracking-widest mb-1">สั่งอาหาร (Mobile Order)</p>
         <h3 class="text-3xl font-black text-gray-800">${selectedTable.value.table_name}</h3>
-        <p class="font-bold mt-1 text-sm text-blue-500">(สแกนเพื่อสั่งอาหาร)</p>
       </div>
-      <div class="relative bg-white p-4 rounded-3xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.1)] border border-gray-100 mb-6 group">
+      <div class="relative bg-white p-4 rounded-3xl shadow-sm border border-gray-100 mb-6 group">
         <img src="${qrImageSrc}" class="w-56 h-56 object-contain rounded-xl mx-auto">
       </div>
       <div class="w-full flex gap-3 mt-4">
+        <button id="btn-print-qr" class="flex-1 py-4 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded-2xl transition-all active:scale-95 text-lg"><i class="fa-solid fa-print mr-2"></i> ปริ้นท์ (80mm)</button>
         <button id="btn-close-qr" class="flex-1 py-4 bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold rounded-2xl transition-all active:scale-95 text-lg">ปิดหน้าต่าง</button>
       </div>
     </div>
   `
 
   Swal.fire({
-    html: htmlStr,
-    showConfirmButton: false,
-    width: '450px',
-    padding: '2rem',
+    html: htmlStr, showConfirmButton: false, width: '450px', padding: '2rem',
     didOpen: () => {
-      document.getElementById('btn-close-qr').addEventListener('click', () => {
-        Swal.close()
+      document.getElementById('btn-close-qr').addEventListener('click', () => Swal.close())
+      document.getElementById('btn-print-qr').addEventListener('click', () => {
+        printThermal(selectedTable.value.table_name, 'สแกน QR Code เพื่อสั่งอาหาร', qrImageSrc)
       })
+    }
+  })
+}
+
+// 💵 ฟังก์ชันเช็คบิลและปิดโต๊ะ
+const openCheckout = async () => {
+  if (!selectedTable.value) return
+  
+  const { data: order } = await supabase.from('orders')
+    .select('*')
+    .eq('table_id', selectedTable.value.id)
+    .eq('status', 'Open')
+    .maybeSingle()
+    
+  if (!order) {
+    Swal.fire({ icon: 'info', title: 'ไม่พบข้อมูล', text: 'โต๊ะนี้ยังไม่มีการสั่งอาหารครับ' })
+    return
+  }
+
+  Swal.fire({
+    title: `เช็คบิล - ${selectedTable.value.table_name}`,
+    html: `
+      <div class="text-center mt-4">
+        <p class="text-gray-500 font-bold mb-2">ยอดรวมที่ต้องชำระสุทธิ</p>
+        <h2 class="text-5xl font-black text-primary mb-6 border-y-2 border-dashed border-gray-200 py-4">฿${Number(order.total_amount).toLocaleString()}</h2>
+      </div>
+    `,
+    showCancelButton: true,
+    confirmButtonColor: '#22c55e',
+    cancelButtonColor: '#f3f4f6',
+    cancelButtonText: '<span style="color: #4b5563; font-weight: bold;">ยกเลิก</span>',
+    confirmButtonText: '<i class="fa-solid fa-check-double mr-2"></i> ยืนยันรับเงิน (ปิดโต๊ะ)',
+    customClass: { confirmButton: 'font-bold px-6 py-3 rounded-xl', cancelButton: 'px-6 py-3 rounded-xl' }
+  }).then(async (result) => {
+    if (result.isConfirmed) {
+      try {
+        await supabase.from('orders').update({ status: 'Paid' }).eq('id', order.id)
+        await supabase.from('tables').update({ status: 'Available', service_request: '' }).eq('id', selectedTable.value.id)
+        
+        Swal.fire({ icon: 'success', title: 'รับชำระเงินเรียบร้อย!', text: 'ปิดโต๊ะสำเร็จ', timer: 2000, showConfirmButton: false })
+        
+        selectedTable.value = null
+        cart.value = []
+        loadTables() 
+      } catch (error) {
+        Swal.fire('ผิดพลาด', 'ไม่สามารถปิดโต๊ะได้', 'error')
+      }
     }
   })
 }
@@ -286,3 +355,7 @@ onMounted(() => {
   loadMenus()
 })
 </script>
+
+<style scoped>
+.no-scrollbar::-webkit-scrollbar { display: none; }
+</style>
