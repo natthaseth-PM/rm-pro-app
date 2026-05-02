@@ -32,10 +32,11 @@
 
       <div v-else class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
         
-        <div v-for="t in mergedTables" :key="t.id" 
+        <button v-for="t in mergedTables" :key="t.id" 
+          @click="selectTable(t)"
           :class="[
-            'relative rounded-[2rem] border-2 transition-all duration-300 flex flex-col items-center justify-center p-6 h-56 bg-white',
-            t.status === 'Available' ? 'border-emerald-100 shadow-sm' : 'border-orange-200 bg-orange-50/30 shadow-md'
+            'relative rounded-[2rem] border-2 transition-all duration-300 flex flex-col items-center justify-center p-6 h-56 bg-white cursor-pointer active:scale-95 hover:shadow-xl hover:-translate-y-1',
+            t.status === 'Available' ? 'border-emerald-100 shadow-sm hover:border-emerald-400' : 'border-orange-200 bg-orange-50/30 shadow-md hover:border-orange-400'
           ]">
           
           <div v-if="t.status !== 'Available'" class="absolute -top-3 -right-3 w-8 h-8 bg-orange-500 text-white rounded-full flex items-center justify-center shadow-md border-2 border-white z-10">
@@ -55,18 +56,18 @@
             {{ t.description }}
           </div>
 
-          <div v-if="t.status === 'Available'" class="mt-auto font-black text-emerald-500 text-sm">
+          <div v-if="t.status === 'Available'" class="mt-auto font-black text-emerald-500 text-sm bg-emerald-50 px-4 py-1 rounded-full border border-emerald-100">
             ว่าง
           </div>
 
           <div v-else class="mt-auto flex flex-col items-center w-full">
-            <span class="px-3 py-1 bg-blue-100 text-blue-600 rounded-full text-[10px] font-black mb-1 flex items-center">
-              <i class="fa-solid fa-utensils mr-1"></i> {{ t.order_mode || 'สั่งปกติ' }}
+            <span class="px-3 py-1 bg-orange-500 text-white rounded-full text-[10px] font-black mb-1 flex items-center shadow-sm shadow-orange-500/30">
+              <i class="fa-solid fa-user-check mr-1"></i> มีลูกค้า
             </span>
-            <span class="font-black text-gray-900 text-lg">฿{{ t.total_amount ? t.total_amount.toLocaleString() : '0' }}</span>
+            <span class="font-black text-gray-900 text-lg leading-none mt-1">฿{{ t.total_amount ? t.total_amount.toLocaleString() : '0' }}</span>
           </div>
 
-        </div>
+        </button>
 
       </div>
     </main>
@@ -75,16 +76,15 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { useRouter } from 'vue-router' // 🌟 นำเข้า useRouter
+import { useRouter } from 'vue-router'
 import { supabase } from '../supabase'
 
-const router = useRouter() // 🌟 เรียกใช้งาน router
+const router = useRouter()
 const tables = ref([])
 const activeOrders = ref([])
 const isLoading = ref(true)
 let realtimeChannel = null
 
-// โหลดข้อมูลโต๊ะ และบิลที่เปิดอยู่
 const fetchData = async () => {
   const { data: tData } = await supabase.from('tables').select('*').order('table_name')
   if (tData) tables.value = tData
@@ -95,7 +95,6 @@ const fetchData = async () => {
   isLoading.value = false
 }
 
-// นำข้อมูลโต๊ะ กับ บิล มารวมกัน
 const mergedTables = computed(() => {
   return tables.value.map(table => {
     const order = activeOrders.value.find(o => o.table_id === table.id)
@@ -106,13 +105,10 @@ const mergedTables = computed(() => {
 const availableCount = computed(() => tables.value.filter(t => t.status === 'Available').length)
 const occupiedCount = computed(() => tables.value.filter(t => t.status !== 'Available').length)
 
-// 🌟 ฟังก์ชันเมื่อกดเลือกโต๊ะจากผังรวม
 const selectTable = (table) => {
-  // สั่งให้เปลี่ยนหน้าไปที่ POS พร้อมแนบ table_id ไปที่ URL
   router.push({ path: '/pos', query: { table_id: table.id } })
 }
 
-// ระบบ Real-time
 const setupRealtime = () => {
   realtimeChannel = supabase.channel('table_layout_updates')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'tables' }, () => fetchData())
