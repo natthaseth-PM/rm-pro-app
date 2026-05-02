@@ -227,16 +227,12 @@
         <div class="px-10 py-8 flex justify-between items-center bg-gradient-to-r from-gray-50 to-white border-b border-gray-100">
           <div>
             <h2 class="text-3xl font-black text-gray-800 flex items-center gap-3">
-              <span class="w-12 h-12 bg-primary/10 text-primary rounded-2xl flex items-center justify-center">
-                <i class="fa-solid fa-map-location-dot"></i>
-              </span>
+              <span class="w-12 h-12 bg-primary/10 text-primary rounded-2xl flex items-center justify-center"><i class="fa-solid fa-map-location-dot"></i></span>
               เลือกโต๊ะรับลูกค้า
             </h2>
             <p class="text-gray-400 font-bold ml-14 mt-1">คลิกที่โต๊ะเพื่อดำเนินการต่อ | ทั้งหมด {{ tables.length }} โต๊ะ</p>
           </div>
-          <button @click="showTableModal = false" class="w-14 h-14 bg-gray-100 hover:bg-red-50 text-gray-400 hover:text-red-500 rounded-full transition-all flex items-center justify-center text-2xl shadow-inner">
-            <i class="fa-solid fa-xmark"></i>
-          </button>
+          <button @click="showTableModal = false" class="w-14 h-14 bg-gray-100 hover:bg-red-50 text-gray-400 hover:text-red-500 rounded-full transition-all flex items-center justify-center text-2xl shadow-inner"><i class="fa-solid fa-xmark"></i></button>
         </div>
 
         <div class="flex-1 p-10 flex items-center justify-center bg-gray-50/50">
@@ -245,61 +241,30 @@
             <p class="font-black text-gray-400 text-xl tracking-widest">กำลังดึงข้อมูลผังโต๊ะ...</p>
           </div>
 
-          <div v-else 
-               class="grid w-full h-full content-center gap-6"
-               :style="{
-                 gridTemplateColumns: `repeat(auto-fit, minmax(${tableCardSize}px, 1fr))`,
-                 gridAutoRows: `${tableCardSize * 0.9}px`
-               }">
-            
-            <button v-for="t in tables" :key="t.id" 
-              @click="selectTable(t)"
-              :class="[
-                'relative rounded-[2.5rem] border-4 transition-all duration-300 flex flex-col items-center justify-center p-4 group overflow-hidden',
-                t.status === 'Available' 
-                  ? 'bg-white border-emerald-100 hover:border-emerald-500 hover:shadow-xl hover:shadow-emerald-200' 
-                  : 'bg-orange-50 border-orange-200 hover:border-orange-500 hover:shadow-xl hover:shadow-orange-200'
-              ]">
+          <div v-else class="grid w-full h-full content-center gap-6" :style="{ gridTemplateColumns: `repeat(auto-fit, minmax(${tableCardSize}px, 1fr))`, gridAutoRows: `${tableCardSize * 0.9}px` }">
+            <button v-for="t in tables" :key="t.id" @click="selectTable(t)" :class="['relative rounded-[2.5rem] border-4 transition-all duration-300 flex flex-col items-center justify-center p-4 group overflow-hidden', t.status === 'Available' ? 'bg-white border-emerald-100 hover:border-emerald-500 hover:shadow-xl hover:shadow-emerald-200' : 'bg-orange-50 border-orange-200 hover:border-orange-500 hover:shadow-xl hover:shadow-orange-200']">
               
-              <div :class="[
-                'rounded-3xl flex items-center justify-center transition-all duration-500 mb-2 shadow-inner',
-                t.status === 'Available' ? 'bg-emerald-50 text-emerald-500 w-1/3 h-1/3' : 'bg-orange-200 text-orange-600 w-1/3 h-1/3'
-              ]">
+              <div :class="['rounded-3xl flex items-center justify-center transition-all duration-500 mb-2 shadow-inner', t.status === 'Available' ? 'bg-emerald-50 text-emerald-500 w-1/3 h-1/3' : 'bg-orange-200 text-orange-600 w-1/3 h-1/3']">
                 <i class="fa-solid fa-utensils text-2xl group-hover:scale-125"></i>
               </div>
 
               <h3 class="font-black text-gray-800 leading-none" :style="{ fontSize: tableFontSize + 'px' }">{{ t.table_name }}</h3>
-              <p v-if="t.description" class="text-gray-400 font-bold mt-1 text-center line-clamp-1 px-2" :style="{ fontSize: (tableFontSize * 0.5) + 'px' }">
-                {{ t.description }}
-              </p>
+              <p v-if="t.description" class="text-gray-400 font-bold mt-1 text-center line-clamp-1 px-2" :style="{ fontSize: (tableFontSize * 0.5) + 'px' }">{{ t.description }}</p>
 
-              <div :class="[
-                'mt-3 px-4 py-1 rounded-full font-black uppercase tracking-tighter shadow-sm border-2',
-                t.status === 'Available' ? 'bg-emerald-500 text-white border-emerald-400' : 'bg-orange-500 text-white border-orange-400'
-              ]" :style="{ fontSize: (tableFontSize * 0.45) + 'px' }">
+              <div :class="['mt-3 px-4 py-1 rounded-full font-black uppercase tracking-tighter shadow-sm border-2', t.status === 'Available' ? 'bg-emerald-500 text-white border-emerald-400' : 'bg-orange-500 text-white border-orange-400']" :style="{ fontSize: (tableFontSize * 0.45) + 'px' }">
                 {{ t.status === 'Available' ? 'ว่าง' : 'มีลูกค้า' }}
               </div>
 
               <div v-if="t.status !== 'Available'" class="absolute top-0 right-0 p-3">
-                <span class="flex h-3 w-3 relative">
-                  <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
-                  <span class="relative inline-flex rounded-full h-3 w-3 bg-orange-500"></span>
-                </span>
+                <span class="flex h-3 w-3 relative"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span><span class="relative inline-flex rounded-full h-3 w-3 bg-orange-500"></span></span>
               </div>
             </button>
-
           </div>
         </div>
 
         <div class="px-10 py-6 bg-white border-t border-gray-100 flex gap-8 shrink-0">
-          <div class="flex items-center gap-2">
-            <div class="w-4 h-4 rounded-full bg-emerald-500 shadow-md shadow-emerald-200"></div>
-            <span class="text-sm font-black text-gray-500 uppercase">ว่าง (Available)</span>
-          </div>
-          <div class="flex items-center gap-2">
-            <div class="w-4 h-4 rounded-full bg-orange-500 shadow-md shadow-orange-200"></div>
-            <span class="text-sm font-black text-gray-500 uppercase">ไม่ว่าง (Occupied)</span>
-          </div>
+          <div class="flex items-center gap-2"><div class="w-4 h-4 rounded-full bg-emerald-500 shadow-md shadow-emerald-200"></div><span class="text-sm font-black text-gray-500 uppercase">ว่าง (Available)</span></div>
+          <div class="flex items-center gap-2"><div class="w-4 h-4 rounded-full bg-orange-500 shadow-md shadow-orange-200"></div><span class="text-sm font-black text-gray-500 uppercase">ไม่ว่าง (Occupied)</span></div>
         </div>
       </div>
     </div>
@@ -309,8 +274,12 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router' 
 import { supabase } from '../supabase'
 import Swal from 'sweetalert2'
+
+const route = useRoute()   
+const router = useRouter() 
 
 // State ทั่วไป
 const menus = ref([])
@@ -371,6 +340,20 @@ const canCheckout = computed(() => {
 const promptPayImage = computed(() => {
   const ppId = storeSettings.value.PromptPayID || '0000000000'
   return `https://promptpay.io/${ppId}/${netTotal.value}.png`
+})
+
+// Computed สำหรับปรับขนาดโต๊ะอัตโนมัติ (Premium Scaling Modal)
+const tableCardSize = computed(() => {
+  const count = tables.value.length
+  if (count <= 6) return 280  // โต๊ะน้อย -> ตัวใหญ่พรีเมียม
+  if (count <= 12) return 220 // เริ่มเยอะ -> ย่อขนาดลง
+  if (count <= 20) return 180 // เยอะมาก -> ย่ออีก
+  return 140                  // เยอะถล่มทลาย -> ตัวจิ๋วเพื่อให้ไม่ Scroll
+})
+
+const tableFontSize = computed(() => {
+  const size = tableCardSize.value
+  return size * 0.12 // ปรับขนาดฟอนต์ตามขนาดการ์ด
 })
 
 // รีเซ็ตแต้มถ้าเปลี่ยนสมาชิก
@@ -555,23 +538,19 @@ const generateQR = () => {
   })
 }
 
-// เพิ่มเข้าไปในส่วนของ Computed Properties เดิมครับ
-const tableCardSize = computed(() => {
-  const count = tables.value.length
-  if (count <= 6) return 280  // โต๊ะน้อย -> ตัวใหญ่พรีเมียม
-  if (count <= 12) return 220 // เริ่มเยอะ -> ย่อขนาดลง
-  if (count <= 20) return 180 // เยอะมาก -> ย่ออีก
-  return 140                  // เยอะถล่มทลาย -> ตัวจิ๋วเพื่อให้ไม่ Scroll
-})
-
-const tableFontSize = computed(() => {
-  const size = tableCardSize.value
-  return size * 0.12 // ปรับขนาดฟอนต์ตามขนาดการ์ด
-})
-
-onMounted(() => {
+onMounted(async () => {
   loadSettings()
   loadMenus()
+
+  // 🌟 ตรวจสอบว่ามีการโยน table_id มาจากหน้าผังโต๊ะ (Tables.vue) หรือไม่
+  if (route.query.table_id) {
+    await loadTables() // โหลดข้อมูลโต๊ะทั้งหมดก่อน
+    const t = tables.value.find(x => x.id == route.query.table_id)
+    if (t) {
+      await selectTable(t) // สั่งเปิดโต๊ะนั้นอัตโนมัติเหมือนกดปุ่ม
+      router.replace('/pos') // เคลียร์ URL ให้สะอาด จะได้ไม่โหลดซ้ำเวลา Refresh
+    }
+  }
 })
 </script>
 

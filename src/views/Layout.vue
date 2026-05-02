@@ -13,11 +13,15 @@
           <span class="ml-3 font-medium hidden lg:block text-left flex-1">POS (รับออเดอร์)</span>
         </router-link>
 
+        <router-link to="/tables" class="flex items-center p-3 rounded-xl transition-all duration-200 w-full text-gray-400 hover:bg-gray-700 hover:text-white" active-class="bg-primary text-white shadow-md !text-white">
+          <i class="fa-solid fa-border-all w-6 text-center text-lg"></i>
+          <span class="ml-3 font-medium hidden lg:block text-left flex-1">ผังโต๊ะรวม</span>
+        </router-link>
+
         <router-link to="/kitchen" class="flex items-center p-3 rounded-xl transition-all duration-200 w-full text-gray-400 hover:bg-gray-700 hover:text-white" active-class="bg-primary text-white shadow-md !text-white">
           <i class="fa-solid fa-fire-burner w-6 text-center text-lg"></i>
           <span class="ml-3 font-medium hidden lg:block text-left flex-1">Kitchen (ห้องครัว)</span>
         </router-link>
-        
       </nav>
       
       <div class="p-4 border-t border-gray-700 flex items-center justify-between shrink-0">
