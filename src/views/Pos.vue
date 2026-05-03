@@ -39,7 +39,9 @@
             <div class="flex items-center gap-3">
               <div class="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold transition-colors" :class="selectedTable ? 'bg-orange-500 shadow-md' : 'bg-gray-300'"><i class="fa-solid fa-chair text-lg"></i></div>
               <div class="text-left min-w-0">
-                <p class="text-[10px] font-black text-gray-400 uppercase leading-none mb-1">โต๊ะที่เลือก</p>
+                <p class="text-[10px] font-black text-gray-400 uppercase leading-none mb-1">
+                  {{ selectedTable ? (activeItems.length > 0 ? 'โต๊ะที่เลือก (มีลูกค้า)' : 'โต๊ะที่เลือก (ว่าง)') : 'โต๊ะที่เลือก' }}
+                </p>
                 <p class="font-black text-gray-900 leading-none text-sm truncate">{{ selectedTable ? selectedTable.table_name : 'กดเลือกโต๊ะ' }}</p>
               </div>
             </div>
@@ -332,7 +334,7 @@ const memberPhone = ref('')
 const memberInfo = ref(null)
 const usePointsAmount = ref(0)
 const successChangeAmount = ref(0)
-const lastOrderForReceipt = ref(null) // เก็บข้อมูลบิลที่เพิ่งจ่ายเสร็จเพื่อนำไปปริ้นท์
+const lastOrderForReceipt = ref(null) 
 
 // Computed Categories & Menus
 const availableCategories = computed(() => ['All', ...new Set(menus.value.map(item => item.category))])
@@ -343,7 +345,6 @@ const cartTotal = computed(() => cart.value.reduce((sum, item) => sum + (item.pr
 const activeTotal = computed(() => activeItems.value.reduce((sum, item) => sum + Number(item.total_price), 0))
 const grandTotal = computed(() => cartTotal.value + activeTotal.value)
 
-// 🌟 การคำนวณหน้าชำระเงิน
 const calculatedDiscount = computed(() => {
   const manualD = Number(discountValue.value) || 0
   const manualDiscount = discountType.value === 'percent' ? (grandTotal.value * manualD) / 100 : manualD
@@ -385,7 +386,7 @@ const tableFontSize = computed(() => {
 
 watch(memberInfo, () => { usePointsAmount.value = 0 })
 
-// Load Data
+// 📡 Load Data
 const loadSettings = async () => {
   const { data } = await supabase.from('settings').select('*')
   if (data) storeSettings.value = Object.fromEntries(data.map(item => [item.setting_key, item.setting_value]))
@@ -396,12 +397,22 @@ const loadMenus = async () => {
   if (data) menus.value = data
   isLoadingMenus.value = false
 }
+
+// 🌟 Double Check in POS: ดึง tables พร้อมเช็ค orders ที่เปิดอยู่
 const loadTables = async () => {
   isLoadingTables.value = true
-  const { data } = await supabase.from('tables').select('*').order('table_name')
-  if (data) tables.value = data
+  const { data: tData } = await supabase.from('tables').select('*').order('table_name')
+  const { data: oData } = await supabase.from('orders').select('table_id').eq('status', 'Open')
+  
+  if (tData) {
+    tables.value = tData.map(t => {
+      const isOccupied = oData && oData.some(o => o.table_id === t.id)
+      return { ...t, status: isOccupied ? 'Occupied' : t.status }
+    })
+  }
   isLoadingTables.value = false
 }
+
 const fetchTableOrder = async (tableId) => {
   activeItems.value = []
   currentOrderId.value = null
@@ -436,7 +447,7 @@ const voidItem = async (item) => {
   }
 }
 
-// ส่งเข้าครัว
+// 🌟 ส่งเข้าครัว (บังคับให้ตารางผังโต๊ะเป็น Occupied ทุกครั้งที่สั่ง)
 const sendOrderToKitchen = async () => {
   if (!selectedTable.value || cart.value.length === 0) return
   isSubmitting.value = true
@@ -447,13 +458,18 @@ const sendOrderToKitchen = async () => {
     } else {
       const { data: newOrder } = await supabase.from('orders').insert({ table_id: selectedTable.value.id, total_amount: grandTotal.value, status: 'Open' }).select().single()
       orderId = newOrder.id
-      await supabase.from('tables').update({ status: 'Occupied' }).eq('id', selectedTable.value.id)
-      selectedTable.value.status = 'Occupied'
     }
+    
+    // บังคับอัปเดตโต๊ะเป็น Occupied ทุกครั้ง!
+    await supabase.from('tables').update({ status: 'Occupied' }).eq('id', selectedTable.value.id)
+    selectedTable.value.status = 'Occupied'
+
     const details = cart.value.map(item => ({ order_id: orderId, menu_id: item.id, menu_name: item.menu_name, price: item.price, quantity: item.qty, total_price: item.price * item.qty, kitchen_status: 'Pending' }))
     await supabase.from('order_details').insert(details)
+    
     await fetchTableOrder(selectedTable.value.id)
     cart.value = []
+    Swal.fire({ icon: 'success', title: 'ส่งเข้าครัวแล้ว!', toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 })
   } catch (error) {
     Swal.fire('ผิดพลาด', 'ไม่สามารถส่งออเดอร์ได้', 'error')
   } finally {
@@ -511,35 +527,38 @@ const promptRegisterMember = async () => {
   }
 }
 
-// 🌟 ปรับระบบชำระเงิน ให้แสดง Modal ใหม่
 const submitPayment = async () => {
   if (!canCheckout.value || isSubmitting.value) return
   isSubmitting.value = true
   try {
     const finalReceived = paymentMethod.value === 'Cash' ? Number(numpadValue.value) : netTotal.value
     
-    // บันทึกบิลลงระบบ (เพิ่ม received_amount และ change_amount เพื่อให้ History สมบูรณ์ในอนาคต)
-    await supabase.from('orders').update({ 
+    const { error: orderError } = await supabase.from('orders').update({ 
       status: 'Paid', 
       total_amount: netTotal.value,
       payment_method: paymentMethod.value,
       received_amount: finalReceived,
       change_amount: changeAmount.value
     }).eq('id', currentOrderId.value)
+
+    if (orderError) throw orderError
     
-    await supabase.from('tables').update({ status: 'Available', service_request: '' }).eq('id', selectedTable.value.id)
-    
+    const { error: tableError } = await supabase.from('tables').update({ status: 'Available', service_request: '' }).eq('id', selectedTable.value.id)
+    if (tableError) throw tableError
+
     if (memberInfo.value) {
       const earnRate = Number(storeSettings.value.PointEarnRate) || 100
       const earnedPoints = Math.floor(netTotal.value / earnRate)
       const usedPoints = Number(usePointsAmount.value) || 0
-      await supabase.from('members').update({ 
+      
+      const { error: memberError } = await supabase.from('members').update({ 
         total_spent: Number(memberInfo.value.total_spent) + netTotal.value, 
         points: Number(memberInfo.value.points) - usedPoints + earnedPoints 
       }).eq('phone', memberInfo.value.phone)
+
+      if (memberError) throw memberError
     }
 
-    // เก็บข้อมูลไว้ทำใบเสร็จ
     successChangeAmount.value = changeAmount.value
     lastOrderForReceipt.value = {
       id: currentOrderId.value,
@@ -553,17 +572,17 @@ const submitPayment = async () => {
     }
 
     showPaymentModal.value = false
-    showSuccessModal.value = true // 🌟 เปิด Modal ใหม่
+    showSuccessModal.value = true
     clearTable()
 
   } catch (error) {
-    Swal.fire('ผิดพลาด', 'ไม่สามารถปิดบิลได้', 'error')
+    console.error("Payment Error:", error)
+    Swal.fire('ผิดพลาด', 'ไม่สามารถปิดบิลได้ กรุณาตรวจสอบฐานข้อมูล', 'error')
   } finally {
     isSubmitting.value = false
   }
 }
 
-// 🖨️ ฟังก์ชันพิมพ์ใบเสร็จ (รูปแบบเดียวกับหน้า History)
 const printReceipt = () => {
   if (!lastOrderForReceipt.value) return
   const order = lastOrderForReceipt.value
@@ -634,7 +653,6 @@ const printReceipt = () => {
   printWindow.document.close()
 }
 
-// 🌟 ปรับปรุงหน้าโชว์ QR โต๊ะให้เป๊ะตามภาพ
 const printQR = (title, imgUrl) => {
   const printWindow = window.open('', '', 'width=400,height=600')
   printWindow.document.write(`<html><head><title>Print QR</title><style>@page{margin:0;size:80mm auto;}body{font-family:'Kanit',sans-serif;width:80mm;margin:0 auto;padding:15px;text-align:center;color:#000;box-sizing:border-box;}h2{margin:0 0 5px 0;font-size:26px;font-weight:900;}p{margin:0 0 10px 0;font-size:16px;font-weight:bold;}img{width:220px;height:220px;margin:10px auto;display:block;}.footer{margin-top:15px;border-top:2px dashed #000;padding-top:10px;font-size:14px;font-weight:bold;}</style><link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;700;900&display=swap" rel="stylesheet"></head><body><h2>RM Pro</h2><p>สั่งอาหารผ่านมือถือ</p><h2 style="font-size: 36px; border: 3px solid #000; padding: 5px; margin-top: 10px; border-radius: 10px;">${title}</h2><img src="${imgUrl}" onload="window.print(); window.close();" /><div class="footer">ขอบคุณที่ใช้บริการครับ</div></body></html>`)

@@ -95,15 +95,17 @@ const fetchData = async () => {
   isLoading.value = false
 }
 
+// 🌟 Double Check: ถ้ามีบิล Open อยู่ บังคับให้โต๊ะเป็น Occupied ทันที
 const mergedTables = computed(() => {
   return tables.value.map(table => {
     const order = activeOrders.value.find(o => o.table_id === table.id)
-    return { ...table, total_amount: order ? order.total_amount : 0, order_mode: order ? order.order_mode : '' }
+    const actualStatus = order ? 'Occupied' : 'Available' 
+    return { ...table, status: actualStatus, total_amount: order ? order.total_amount : 0, order_mode: order ? order.order_mode : '' }
   })
 })
 
-const availableCount = computed(() => tables.value.filter(t => t.status === 'Available').length)
-const occupiedCount = computed(() => tables.value.filter(t => t.status !== 'Available').length)
+const availableCount = computed(() => mergedTables.value.filter(t => t.status === 'Available').length)
+const occupiedCount = computed(() => mergedTables.value.filter(t => t.status !== 'Available').length)
 
 const selectTable = (table) => {
   router.push({ path: '/pos', query: { table_id: table.id } })
