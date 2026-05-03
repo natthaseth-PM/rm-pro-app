@@ -108,7 +108,7 @@
       </div>
     </div>
 
-    <div v-if="showPaymentModal" class="absolute inset-0 bg-gray-900/80 backdrop-blur-md z-[60] flex items-center justify-center p-4 animate-[fadeIn_0.2s_ease-out]">
+    <div v-if="showPaymentModal" class="absolute inset-0 bg-[#40434e]/80 backdrop-blur-md z-[60] flex items-center justify-center p-4 animate-[fadeIn_0.2s_ease-out]">
       <div class="bg-gray-50 rounded-[2rem] shadow-2xl w-full max-w-4xl flex flex-col md:flex-row overflow-hidden max-h-[90vh]">
         
         <div class="w-full md:w-1/2 bg-white p-6 md:p-8 flex flex-col border-r border-gray-100 overflow-y-auto no-scrollbar">
@@ -217,11 +217,36 @@
             {{ isSubmitting ? 'กำลังประมวลผล...' : 'ยืนยันปิดบิลชำระเงิน' }}
           </button>
         </div>
-
       </div>
     </div>
 
-    <div v-if="showTableModal" class="absolute inset-0 bg-gray-900/60 backdrop-blur-md z-[200] flex items-center justify-center p-4 md:p-8 animate-[fadeIn_0.2s_ease-out]">
+    <div v-if="showSuccessModal" class="absolute inset-0 bg-[#40434e]/80 backdrop-blur-md z-[200] flex items-center justify-center p-4 animate-[fadeIn_0.2s_ease-out]">
+      <div class="bg-white rounded-[2.5rem] p-8 w-full max-w-[400px] flex flex-col items-center shadow-2xl">
+        
+        <div class="w-24 h-24 bg-[#d1fae5] text-[#22c55e] rounded-full flex items-center justify-center text-5xl mb-5 shadow-inner">
+          <i class="fa-solid fa-check"></i>
+        </div>
+        
+        <h2 class="text-3xl font-black text-[#1a1a2e] mb-1 tracking-tight">ปิดบิลสำเร็จ!</h2>
+        <p class="text-sm font-bold text-gray-500 mb-6 text-center">บันทึกข้อมูลและอัปเดตสถานะโต๊ะเรียบร้อยแล้ว</p>
+        
+        <div class="w-full bg-gray-50 border border-gray-100 rounded-2xl p-6 flex flex-col items-center justify-center mb-8">
+          <span class="text-xs font-black text-gray-400 uppercase tracking-widest mb-2">เงินทอน (CHANGE)</span>
+          <span class="text-6xl font-black text-[#22c55e] tracking-tighter">฿{{ successChangeAmount.toLocaleString() }}</span>
+        </div>
+
+        <div class="flex gap-3 w-full">
+          <button @click="showSuccessModal = false" class="flex-1 py-4 bg-gray-100 hover:bg-gray-200 text-gray-600 font-black rounded-2xl transition-all active:scale-95 text-lg">
+            เสร็จสิ้น
+          </button>
+          <button @click="printReceipt" class="flex-1 py-4 bg-[#f97316] hover:bg-[#ea580c] text-white font-black rounded-2xl transition-all shadow-lg shadow-orange-500/30 flex items-center justify-center gap-2 active:scale-95 text-lg">
+            <i class="fa-solid fa-print"></i> พิมพ์ใบเสร็จ
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="showTableModal" class="absolute inset-0 bg-[#40434e]/80 backdrop-blur-md z-[200] flex items-center justify-center p-4 md:p-8 animate-[fadeIn_0.2s_ease-out]">
       <div class="bg-white rounded-[3rem] shadow-2xl w-full max-w-7xl h-[85vh] flex flex-col overflow-hidden border border-white/20">
         
         <div class="px-10 py-8 flex justify-between items-center bg-gradient-to-r from-gray-50 to-white border-b border-gray-100">
@@ -296,6 +321,7 @@ const isLoadingTables = ref(false)
 const isSubmitting = ref(false)
 const showTableModal = ref(false)
 const showPaymentModal = ref(false)
+const showSuccessModal = ref(false)
 
 // State สำหรับชำระเงิน & สมาชิก
 const paymentMethod = ref('Cash')
@@ -304,7 +330,9 @@ const discountValue = ref('')
 const numpadValue = ref('')
 const memberPhone = ref('')
 const memberInfo = ref(null)
-const usePointsAmount = ref(0) // แต้มที่ต้องการใช้แลกส่วนลด
+const usePointsAmount = ref(0)
+const successChangeAmount = ref(0)
+const lastOrderForReceipt = ref(null) // เก็บข้อมูลบิลที่เพิ่งจ่ายเสร็จเพื่อนำไปปริ้นท์
 
 // Computed Categories & Menus
 const availableCategories = computed(() => ['All', ...new Set(menus.value.map(item => item.category))])
@@ -315,7 +343,7 @@ const cartTotal = computed(() => cart.value.reduce((sum, item) => sum + (item.pr
 const activeTotal = computed(() => activeItems.value.reduce((sum, item) => sum + Number(item.total_price), 0))
 const grandTotal = computed(() => cartTotal.value + activeTotal.value)
 
-// 🌟 การคำนวณหน้าชำระเงิน (คำนวณแต้ม + ส่วนลดแมนนวล)
+// 🌟 การคำนวณหน้าชำระเงิน
 const calculatedDiscount = computed(() => {
   const manualD = Number(discountValue.value) || 0
   const manualDiscount = discountType.value === 'percent' ? (grandTotal.value * manualD) / 100 : manualD
@@ -342,21 +370,19 @@ const promptPayImage = computed(() => {
   return `https://promptpay.io/${ppId}/${netTotal.value}.png`
 })
 
-// Computed สำหรับปรับขนาดโต๊ะอัตโนมัติ (Premium Scaling Modal)
+// Computed สำหรับปรับขนาดโต๊ะอัตโนมัติ
 const tableCardSize = computed(() => {
   const count = tables.value.length
-  if (count <= 6) return 280  // โต๊ะน้อย -> ตัวใหญ่พรีเมียม
-  if (count <= 12) return 220 // เริ่มเยอะ -> ย่อขนาดลง
-  if (count <= 20) return 180 // เยอะมาก -> ย่ออีก
-  return 140                  // เยอะถล่มทลาย -> ตัวจิ๋วเพื่อให้ไม่ Scroll
+  if (count <= 6) return 280
+  if (count <= 12) return 220
+  if (count <= 20) return 180
+  return 140
 })
 
 const tableFontSize = computed(() => {
-  const size = tableCardSize.value
-  return size * 0.12 // ปรับขนาดฟอนต์ตามขนาดการ์ด
+  return tableCardSize.value * 0.12
 })
 
-// รีเซ็ตแต้มถ้าเปลี่ยนสมาชิก
 watch(memberInfo, () => { usePointsAmount.value = 0 })
 
 // Load Data
@@ -428,7 +454,6 @@ const sendOrderToKitchen = async () => {
     await supabase.from('order_details').insert(details)
     await fetchTableOrder(selectedTable.value.id)
     cart.value = []
-    Swal.fire({ icon: 'success', title: 'ส่งเข้าครัวแล้ว!', toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 })
   } catch (error) {
     Swal.fire('ผิดพลาด', 'ไม่สามารถส่งออเดอร์ได้', 'error')
   } finally {
@@ -478,38 +503,59 @@ const promptRegisterMember = async () => {
 
   if (formValues && formValues.phone && formValues.name) {
     const { error } = await supabase.from('members').insert({ phone: formValues.phone, name: formValues.name, points: 0, total_spent: 0 })
-    if (error) {
-      Swal.fire('ผิดพลาด', 'เบอร์นี้อาจมีในระบบแล้ว', 'error')
-    } else {
-      Swal.fire({icon: 'success', title: 'สมัครสมาชิกสำเร็จ!', timer: 1500, showConfirmButton: false})
+    if (error) Swal.fire('ผิดพลาด', 'เบอร์นี้อาจมีในระบบแล้ว', 'error')
+    else {
       memberPhone.value = formValues.phone
-      searchMember() // โหลดข้อมูลมาแสดงทันที
+      searchMember()
     }
   }
 }
 
+// 🌟 ปรับระบบชำระเงิน ให้แสดง Modal ใหม่
 const submitPayment = async () => {
   if (!canCheckout.value || isSubmitting.value) return
   isSubmitting.value = true
   try {
-    await supabase.from('orders').update({ status: 'Paid', total_amount: netTotal.value }).eq('id', currentOrderId.value)
+    const finalReceived = paymentMethod.value === 'Cash' ? Number(numpadValue.value) : netTotal.value
+    
+    // บันทึกบิลลงระบบ (เพิ่ม received_amount และ change_amount เพื่อให้ History สมบูรณ์ในอนาคต)
+    await supabase.from('orders').update({ 
+      status: 'Paid', 
+      total_amount: netTotal.value,
+      payment_method: paymentMethod.value,
+      received_amount: finalReceived,
+      change_amount: changeAmount.value
+    }).eq('id', currentOrderId.value)
+    
     await supabase.from('tables').update({ status: 'Available', service_request: '' }).eq('id', selectedTable.value.id)
     
-    // อัปเดตยอดสะสมสมาชิก (ตัดแต้มที่ใช้ + เพิ่มแต้มที่ได้ใหม่)
     if (memberInfo.value) {
       const earnRate = Number(storeSettings.value.PointEarnRate) || 100
       const earnedPoints = Math.floor(netTotal.value / earnRate)
       const usedPoints = Number(usePointsAmount.value) || 0
-      
       await supabase.from('members').update({ 
         total_spent: Number(memberInfo.value.total_spent) + netTotal.value, 
         points: Number(memberInfo.value.points) - usedPoints + earnedPoints 
       }).eq('phone', memberInfo.value.phone)
     }
 
-    Swal.fire({ icon: 'success', title: 'รับชำระเงินเรียบร้อย', timer: 2000, showConfirmButton: false })
+    // เก็บข้อมูลไว้ทำใบเสร็จ
+    successChangeAmount.value = changeAmount.value
+    lastOrderForReceipt.value = {
+      id: currentOrderId.value,
+      table_name: selectedTable.value.table_name,
+      created_at: new Date().toISOString(),
+      payment_method: paymentMethod.value,
+      items: [...activeItems.value],
+      total_amount: netTotal.value,
+      received_amount: finalReceived,
+      change_amount: changeAmount.value
+    }
+
     showPaymentModal.value = false
+    showSuccessModal.value = true // 🌟 เปิด Modal ใหม่
     clearTable()
+
   } catch (error) {
     Swal.fire('ผิดพลาด', 'ไม่สามารถปิดบิลได้', 'error')
   } finally {
@@ -517,10 +563,81 @@ const submitPayment = async () => {
   }
 }
 
-// QR Code ปริ้นท์
-const printThermal = (title, subtitle, imgUrl) => {
+// 🖨️ ฟังก์ชันพิมพ์ใบเสร็จ (รูปแบบเดียวกับหน้า History)
+const printReceipt = () => {
+  if (!lastOrderForReceipt.value) return
+  const order = lastOrderForReceipt.value
+  const storeName = storeSettings.value.StoreName || 'บริษัท ร้านอาหาร จำกัด'
+  const footerText = storeSettings.value.FooterText || 'ขอขอบคุณที่ใช้บริการ'
+  
+  let itemsHtml = ''
+  order.items.forEach(item => {
+    itemsHtml += `
+      <div style="display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 5px;">
+        <div>${item.menu_name} <span style="color: #9ca3af; font-size: 12px; margin-left: 4px;">x${item.quantity}</span></div>
+        <div style="font-family: monospace;">${Number(item.price * item.quantity).toLocaleString(undefined, {minimumFractionDigits: 2})}</div>
+      </div>
+    `
+  })
+
   const printWindow = window.open('', '', 'width=400,height=600')
-  printWindow.document.write(`<html><head><title>Print QR</title><style>@page{margin:0;size:80mm auto;}body{font-family:'Kanit',sans-serif;width:80mm;margin:0 auto;padding:15px;text-align:center;color:#000;box-sizing:border-box;}h2{margin:0 0 5px 0;font-size:26px;font-weight:900;}p{margin:0 0 10px 0;font-size:16px;font-weight:bold;}img{width:220px;height:220px;margin:10px auto;display:block;}.footer{margin-top:15px;border-top:2px dashed #000;padding-top:10px;font-size:14px;font-weight:bold;}</style><link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;700;900&display=swap" rel="stylesheet"></head><body><h2>RM Pro</h2><p>สั่งอาหารผ่านมือถือ</p><h2 style="font-size: 36px; border: 3px solid #000; padding: 5px; margin-top: 10px; border-radius: 10px;">${title}</h2><img src="${imgUrl}" onload="window.print(); window.close();" /><p>${subtitle}</p><div class="footer">ขอบคุณที่ใช้บริการครับ</div></body></html>`)
+  printWindow.document.write(`
+    <html><head><title>Print Receipt</title>
+    <style>
+      @page { margin: 0; size: 80mm auto; }
+      body { font-family: 'Kanit', sans-serif; width: 80mm; margin: 0 auto; padding: 15px; color: #4a4a5a; box-sizing: border-box; }
+      .text-center { text-align: center; }
+      .font-black { font-weight: 900; }
+      .font-bold { font-weight: bold; }
+      .text-xl { font-size: 20px; }
+      .text-2xl { font-size: 24px; }
+      .text-xs { font-size: 12px; }
+      .text-sm { font-size: 14px; }
+      .mb-1 { margin-bottom: 4px; }
+      .mb-5 { margin-bottom: 20px; }
+      .flex { display: flex; }
+      .justify-between { justify-content: space-between; }
+      .border-dashed { border-top: 2px dashed #e5e7eb; margin: 15px 0; }
+      .border-solid { border-top: 2px solid #1f2937; margin: 15px 0; }
+      .text-dark { color: #1a1a2e; }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;700;900&display=swap" rel="stylesheet">
+    </head><body>
+      <div class="text-center mb-5">
+        <div class="font-black text-2xl text-dark mb-1">${storeName}</div>
+        <div class="font-bold text-xs" style="color: #6b7280;">ใบเสร็จรับเงิน (สำเนา)</div>
+      </div>
+      <div class="border-dashed"></div>
+      <div class="text-sm font-bold mb-5">
+        <div class="flex justify-between mb-1"><span>เลขที่:</span><span style="font-family: monospace;">INV-${order.id.split('-')[0].toUpperCase()}</span></div>
+        <div class="flex justify-between mb-1"><span>โต๊ะ:</span><span class="text-dark">${order.table_name}</span></div>
+        <div class="flex justify-between mb-1"><span>เวลาจ่าย:</span><span class="text-dark">${new Date(order.created_at).toLocaleString('th-TH')}</span></div>
+        <div class="flex justify-between mb-1"><span>ชำระโดย:</span><span class="text-dark">${order.payment_method}</span></div>
+      </div>
+      <div class="border-dashed"></div>
+      <div class="font-bold mb-5 min-h-[100px]">
+        ${itemsHtml}
+      </div>
+      <div class="border-solid"></div>
+      <div class="font-bold mb-5">
+        <div class="flex justify-between text-xl font-black text-dark mb-3"><span>ยอดสุทธิ (฿):</span><span>${Number(order.total_amount).toLocaleString(undefined, {minimumFractionDigits: 2})}</span></div>
+        <div class="flex justify-between text-xs mb-1"><span>รับเงินมา:</span><span style="font-family: monospace;">${Number(order.received_amount).toLocaleString(undefined, {minimumFractionDigits: 2})}</span></div>
+        <div class="flex justify-between text-xs" style="color: #ea580c;"><span>เงินทอน:</span><span style="font-family: monospace;">${Number(order.change_amount).toLocaleString(undefined, {minimumFractionDigits: 2})}</span></div>
+      </div>
+      <div class="border-dashed"></div>
+      <div class="text-center text-xs font-bold mt-5" style="color: #9ca3af;">${footerText}</div>
+      <script>
+        window.onload = () => { window.print(); window.close(); }
+      <\/script>
+    </body></html>
+  `)
+  printWindow.document.close()
+}
+
+// 🌟 ปรับปรุงหน้าโชว์ QR โต๊ะให้เป๊ะตามภาพ
+const printQR = (title, imgUrl) => {
+  const printWindow = window.open('', '', 'width=400,height=600')
+  printWindow.document.write(`<html><head><title>Print QR</title><style>@page{margin:0;size:80mm auto;}body{font-family:'Kanit',sans-serif;width:80mm;margin:0 auto;padding:15px;text-align:center;color:#000;box-sizing:border-box;}h2{margin:0 0 5px 0;font-size:26px;font-weight:900;}p{margin:0 0 10px 0;font-size:16px;font-weight:bold;}img{width:220px;height:220px;margin:10px auto;display:block;}.footer{margin-top:15px;border-top:2px dashed #000;padding-top:10px;font-size:14px;font-weight:bold;}</style><link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;700;900&display=swap" rel="stylesheet"></head><body><h2>RM Pro</h2><p>สั่งอาหารผ่านมือถือ</p><h2 style="font-size: 36px; border: 3px solid #000; padding: 5px; margin-top: 10px; border-radius: 10px;">${title}</h2><img src="${imgUrl}" onload="window.print(); window.close();" /><div class="footer">ขอบคุณที่ใช้บริการครับ</div></body></html>`)
   printWindow.document.close()
 }
 
@@ -528,12 +645,32 @@ const generateQR = () => {
   if (!selectedTable.value) return
   const customerUrl = `${window.location.origin}/customer?table_id=${selectedTable.value.id}&table_name=${encodeURIComponent(selectedTable.value.table_name)}`
   const qrImageSrc = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(customerUrl)}&margin=10`
+  
+  const htmlStr = `
+    <div class="flex flex-col items-center justify-center font-sans text-gray-800">
+      <div class="w-full bg-[#fff7ed] border border-[#ffedd5] rounded-2xl p-5 mb-6 flex flex-col items-center justify-center shadow-sm">
+        <p class="text-[10px] font-black text-[#f97316] uppercase tracking-widest mb-1">สั่งอาหาร (MOBILE ORDER)</p>
+        <h3 class="text-3xl font-black text-[#1a1a2e] leading-none">${selectedTable.value.table_name}</h3>
+      </div>
+      <div class="bg-white p-3 rounded-3xl border-2 border-dashed border-gray-200 mb-6 shadow-sm">
+        <img src="${qrImageSrc}" class="w-56 h-56 object-contain rounded-xl mx-auto">
+      </div>
+      <div class="w-full flex gap-3 mt-2">
+        <button id="btn-close-qr" class="flex-1 py-4 bg-gray-100 hover:bg-gray-200 text-gray-600 font-black rounded-xl transition-all active:scale-95 text-sm">ปิดหน้าต่าง</button>
+        <button id="btn-print-qr" class="flex-1 py-4 bg-[#3b82f6] hover:bg-[#2563eb] text-white font-black rounded-xl transition-all active:scale-95 text-sm shadow-lg shadow-blue-500/30 flex justify-center items-center gap-2"><i class="fa-solid fa-print"></i> พิมพ์ QR</button>
+      </div>
+    </div>
+  `
+
   Swal.fire({
-    html: `<div class="flex flex-col items-center justify-center p-2"><div class="w-full bg-orange-50 rounded-2xl p-4 mb-6 border border-orange-100 flex flex-col items-center justify-center"><p class="text-sm font-bold text-orange-500 uppercase tracking-widest mb-1">สั่งอาหาร (Mobile Order)</p><h3 class="text-3xl font-black text-gray-800">${selectedTable.value.table_name}</h3></div><div class="relative bg-white p-4 rounded-3xl shadow-sm border border-gray-100 mb-6"><img src="${qrImageSrc}" class="w-56 h-56 object-contain rounded-xl mx-auto"></div><div class="w-full flex gap-3 mt-4"><button id="btn-print-qr" class="flex-1 py-4 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded-2xl transition-all active:scale-95 text-lg"><i class="fa-solid fa-print mr-2"></i> ปริ้นท์ (80mm)</button><button id="btn-close-qr" class="flex-1 py-4 bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold rounded-2xl transition-all active:scale-95 text-lg">ปิด</button></div></div>`,
-    showConfirmButton: false, width: '450px', padding: '2rem',
+    html: htmlStr,
+    showConfirmButton: false, 
+    width: '400px', 
+    padding: '2rem',
+    customClass: { popup: '!rounded-[2.5rem]' },
     didOpen: () => {
       document.getElementById('btn-close-qr').addEventListener('click', () => Swal.close())
-      document.getElementById('btn-print-qr').addEventListener('click', () => printThermal(selectedTable.value.table_name, 'สแกน QR Code เพื่อสั่งอาหาร', qrImageSrc))
+      document.getElementById('btn-print-qr').addEventListener('click', () => printQR(selectedTable.value.table_name, qrImageSrc))
     }
   })
 }
@@ -542,13 +679,12 @@ onMounted(async () => {
   loadSettings()
   loadMenus()
 
-  // 🌟 ตรวจสอบว่ามีการโยน table_id มาจากหน้าผังโต๊ะ (Tables.vue) หรือไม่
   if (route.query.table_id) {
-    await loadTables() // โหลดข้อมูลโต๊ะทั้งหมดก่อน
+    await loadTables()
     const t = tables.value.find(x => x.id == route.query.table_id)
     if (t) {
-      await selectTable(t) // สั่งเปิดโต๊ะนั้นอัตโนมัติเหมือนกดปุ่ม
-      router.replace('/pos') // เคลียร์ URL ให้สะอาด จะได้ไม่โหลดซ้ำเวลา Refresh
+      await selectTable(t)
+      router.replace('/pos')
     }
   }
 })
