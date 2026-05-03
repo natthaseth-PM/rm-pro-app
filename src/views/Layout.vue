@@ -8,6 +8,7 @@
       </div>
       
       <nav class="flex-1 py-6 flex flex-col gap-2 px-3 overflow-y-auto">
+        
         <router-link to="/pos" class="flex items-center p-3 rounded-xl transition-all duration-200 w-full text-gray-400 hover:bg-gray-700 hover:text-white" active-class="bg-primary text-white shadow-md !text-white">
           <i class="fa-solid fa-cash-register w-6 text-center text-lg"></i>
           <span class="ml-3 font-medium hidden lg:block text-left flex-1">POS (รับออเดอร์)</span>
@@ -22,6 +23,12 @@
           <i class="fa-solid fa-fire-burner w-6 text-center text-lg"></i>
           <span class="ml-3 font-medium hidden lg:block text-left flex-1">Kitchen (ห้องครัว)</span>
         </router-link>
+
+        <router-link to="/history" class="flex items-center p-3 rounded-xl transition-all duration-200 w-full text-gray-400 hover:bg-gray-700 hover:text-white" active-class="bg-primary text-white shadow-md !text-white">
+          <i class="fa-solid fa-clock-rotate-left w-6 text-center text-lg"></i>
+          <span class="ml-3 font-medium hidden lg:block text-left flex-1">ประวัติบิล (History)</span>
+        </router-link>
+
       </nav>
       
       <div class="p-4 border-t border-gray-700 flex items-center justify-between shrink-0">
