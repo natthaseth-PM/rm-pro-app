@@ -11,6 +11,9 @@ import Customer from './views/Customer.vue'
 import Kitchen from './views/Kitchen.vue'
 import Tables from './views/Tables.vue'
 import History from './views/History.vue'
+import Reports from './views/Reports.vue'
+import Dashboard from './views/Dashboard.vue'
+import Settings from './views/Settings.vue'
 
 // กำหนดเส้นทาง (Routes)
 const routes = [
@@ -21,11 +24,14 @@ const routes = [
     path: '/', 
     component: Layout,
     children: [
-      { path: '', redirect: '/pos' }, // ถ้าเข้าหน้าแรก ให้เด้งไป /pos เลย
+      { path: '', redirect: '/dashboard' }, // 🌟 2. เปลี่ยนหน้าแรกให้เด้งมา Dashboard เลย (ให้ผู้จัดการดูยอดก่อน)
+      { path: 'dashboard', name: 'Dashboard', component: Dashboard },
       { path: 'pos', name: 'Pos', component: Pos },
       { path: 'tables', name: 'Tables', component: Tables },
       { path: 'kitchen', name: 'Kitchen', component: Kitchen },
       { path: 'history', name: 'History', component: History },
+      { path: 'reports', name: 'Reports', component: Reports },
+      { path: 'settings', name: 'Settings', component: Settings },
     ]
   }
 ]

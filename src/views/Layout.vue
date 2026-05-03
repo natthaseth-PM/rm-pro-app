@@ -8,6 +8,11 @@
       </div>
       
       <nav class="flex-1 py-6 flex flex-col gap-2 px-3 overflow-y-auto">
+
+        <router-link to="/dashboard" class="flex items-center p-3 rounded-xl transition-all duration-200 w-full text-gray-400 hover:bg-gray-700 hover:text-white" active-class="bg-primary text-white shadow-md !text-white">
+          <i class="fa-solid fa-chart-pie w-6 text-center text-lg"></i>
+          <span class="ml-3 font-medium hidden lg:block text-left flex-1">ภาพรวมสถิติ (Dashboard)</span>
+        </router-link>
         
         <router-link to="/pos" class="flex items-center p-3 rounded-xl transition-all duration-200 w-full text-gray-400 hover:bg-gray-700 hover:text-white" active-class="bg-primary text-white shadow-md !text-white">
           <i class="fa-solid fa-cash-register w-6 text-center text-lg"></i>
@@ -27,6 +32,16 @@
         <router-link to="/history" class="flex items-center p-3 rounded-xl transition-all duration-200 w-full text-gray-400 hover:bg-gray-700 hover:text-white" active-class="bg-primary text-white shadow-md !text-white">
           <i class="fa-solid fa-clock-rotate-left w-6 text-center text-lg"></i>
           <span class="ml-3 font-medium hidden lg:block text-left flex-1">ประวัติบิล (History)</span>
+        </router-link>
+
+        <router-link to="/reports" class="flex items-center p-3 rounded-xl transition-all duration-200 w-full text-gray-400 hover:bg-gray-700 hover:text-white" active-class="bg-primary text-white shadow-md !text-white">
+          <i class="fa-solid fa-chart-line w-6 text-center text-lg"></i>
+          <span class="ml-3 font-medium hidden lg:block text-left flex-1">รายงาน (Reports)</span>
+        </router-link>
+
+        <router-link to="/settings" class="flex items-center p-3 rounded-xl transition-all duration-200 w-full text-gray-400 hover:bg-gray-700 hover:text-white" active-class="bg-primary text-white shadow-md !text-white">
+          <i class="fa-solid fa-cogs w-6 text-center text-lg"></i>
+          <span class="ml-3 font-medium hidden lg:block text-left flex-1">ตั้งค่าระบบ (Settings)</span>
         </router-link>
 
       </nav>
