@@ -157,8 +157,7 @@
             <select v-model="menuForm.inventory_id" class="w-full bg-white border border-blue-200 rounded-xl px-4 py-3 outline-none focus:border-blue-500 font-bold text-gray-700 cursor-pointer text-sm shadow-sm transition-all"><option value="">-- ไม่ต้องตัดสต๊อก --</option><option v-for="inv in inventoryList" :key="inv.id" :value="inv.id">{{ inv.item_name }} (คงเหลือ: {{ inv.stock_qty }} {{ inv.unit }})</option></select>
           </div>
           <div class="grid grid-cols-2 gap-5">
-            <div><label class="block text-xs font-bold text-gray-400 mb-1 uppercase tracking-wider">ประเภท</label><select v-model="menuForm.type" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 outline-none focus:border-primary font-bold text-gray-800 transition-all"><option value="Normal">A La Carte</option><option value="Buffet">Buffet</option></select></div>
-            <div><label class="block text-xs font-bold text-gray-400 mb-1 uppercase tracking-wider">สถานะ</label><select v-model="menuForm.status" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 outline-none focus:border-primary font-bold text-gray-800 transition-all" :class="menuForm.status === 'Available' ? 'text-green-600' : 'text-red-600'"><option value="Available">พร้อมขาย</option><option value="Out of Stock">ของหมด</option></select></div>
+            <div class="col-span-2"><label class="block text-xs font-bold text-gray-400 mb-1 uppercase tracking-wider">สถานะ</label><div class="flex gap-2"><button type="button" @click="menuForm.status = 'Available'" :class="menuForm.status === 'Available' ? 'bg-green-100 text-green-600 border-green-200 shadow-sm' : 'bg-gray-50 text-gray-400 border-gray-200'" class="flex-1 py-3 border rounded-xl font-bold transition-all text-sm">พร้อมขาย</button><button type="button" @click="menuForm.status = 'Out of Stock'" :class="menuForm.status === 'Out of Stock' ? 'bg-red-100 text-red-600 border-red-200 shadow-sm' : 'bg-gray-50 text-gray-400 border-gray-200'" class="flex-1 py-3 border rounded-xl font-bold transition-all text-sm">ของหมด</button></div></div>
           </div>
           <div><label class="block text-xs font-bold text-gray-400 mb-1 uppercase tracking-wider">ลิงก์รูปภาพ (URL)</label><input v-model="menuForm.image_url" type="url" placeholder="https://..." class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 outline-none focus:border-primary text-sm text-gray-600 transition-all"></div>
           <div class="flex gap-4 pt-4 mt-2 border-t border-gray-100"><button type="button" @click="showMenuModal = false" class="flex-1 py-4 bg-gray-100 text-gray-600 font-bold rounded-xl hover:bg-gray-200 transition-colors text-lg">ยกเลิก</button><button type="submit" class="flex-1 py-4 bg-primary text-white font-black rounded-xl shadow-lg shadow-orange-500/30 active:scale-95 transition-all text-lg"><i class="fa-solid fa-save mr-2"></i> บันทึกเมนู</button></div>
@@ -266,6 +265,7 @@ const editSettings = ref({
 // Search & Filter state
 const searchMenuQuery = ref('')
 const filterMenuCategory = ref('All')
+const filterMenuType = ref('All')
 const searchInventoryQuery = ref('')
 const searchMemberQuery = ref('')
 
