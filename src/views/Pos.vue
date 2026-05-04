@@ -30,7 +30,7 @@
       
       <div class="p-5 border-b border-gray-100 flex justify-between items-center bg-white shrink-0">
         <h2 class="text-xl font-black flex items-center text-gray-800"><i class="fa-solid fa-clipboard-list mr-2 text-primary"></i> ออเดอร์</h2>
-        <button @click="clearTable" v-if="selectedTable" class="text-xs font-bold text-gray-400 hover:text-red-500 transition-colors flex items-center"><i class="fa-solid fa-rotate-left mr-1"></i> ยกเลิกโต๊ะ</button>
+        <button @click="clearTable" v-if="selectedTable" class="text-xs font-bold text-gray-400 hover:text-red-500 transition-colors flex items-center"><i class="fa-solid fa-xmark mr-1 text-sm"></i> พับหน้าต่าง / ยกเลิก</button>
       </div>
       
       <div class="p-4 shrink-0 border-b border-gray-50 bg-white">
@@ -40,7 +40,7 @@
               <div class="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold transition-colors" :class="selectedTable ? 'bg-orange-500 shadow-md' : 'bg-gray-300'"><i class="fa-solid fa-chair text-lg"></i></div>
               <div class="text-left min-w-0">
                 <p class="text-[10px] font-black text-gray-400 uppercase leading-none mb-1">
-                  {{ selectedTable ? (activeItems.length > 0 ? 'โต๊ะที่เลือก (มีลูกค้า)' : 'โต๊ะที่เลือก (ว่าง)') : 'โต๊ะที่เลือก' }}
+                  {{ selectedTable ? (activeItems.length > 0 ? 'โต๊ะที่เลือก (มีลูกค้า)' : 'โต๊ะที่เลือก (เปิดแล้ว)') : 'โต๊ะที่เลือก' }}
                 </p>
                 <p class="font-black text-gray-900 leading-none text-sm truncate">{{ selectedTable ? selectedTable.table_name : 'กดเลือกโต๊ะ' }}</p>
               </div>
@@ -300,7 +300,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch, onUnmounted } from 'vue' // 🌟 นำเข้า onUnmounted
 import { useRoute, useRouter } from 'vue-router' 
 import { supabase } from '../supabase'
 import Swal from 'sweetalert2'
@@ -335,6 +335,9 @@ const memberInfo = ref(null)
 const usePointsAmount = ref(0)
 const successChangeAmount = ref(0)
 const lastOrderForReceipt = ref(null) 
+
+// 🌟 ตัวแปรเก็บ Real-time channel ของ POS
+let posRealtimeChannel = null
 
 // Computed Categories & Menus
 const availableCategories = computed(() => ['All', ...new Set(menus.value.map(item => item.category))])
@@ -424,52 +427,6 @@ const fetchTableOrder = async (tableId) => {
   }
 }
 
-// ... โค้ด fetchTableOrder เดิม ...
-
-// 🌟 เพิ่มตัวแปรและฟังก์ชัน Real-time ให้ POS
-let posRealtimeChannel = null
-
-const setupPosRealtime = () => {
-  posRealtimeChannel = supabase.channel('pos_order_updates')
-    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'order_details' }, payload => {
-       // ถ้าห้องครัวอัปเดตสถานะ ให้หน้า POS อัปเดตตาม
-       if (currentOrderId.value && payload.new.order_id === currentOrderId.value) {
-         const idx = activeItems.value.findIndex(item => item.id === payload.new.id)
-         if (idx !== -1) {
-           activeItems.value[idx].kitchen_status = payload.new.kitchen_status
-         }
-       }
-    })
-    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'order_details' }, payload => {
-       // ถ้าลูกค้ากดสั่งผ่านมือถือ ให้บิลบนจอแคชเชียร์อัปเดตอัตโนมัติ
-       if (currentOrderId.value === payload.new.order_id) {
-         fetchTableOrder(selectedTable.value.id)
-         Swal.fire({ icon: 'info', title: 'มีออเดอร์ใหม่จากลูกค้าโต๊ะนี้!', toast: true, position: 'top', timer: 2000, showConfirmButton: false })
-       }
-    })
-    .subscribe()
-}
-
-onMounted(async () => {
-  loadSettings()
-  loadMenus()
-  setupPosRealtime() // 🌟 เริ่มทำงาน Real-time
-
-  if (route.query.table_id) {
-    await loadTables()
-    const t = tables.value.find(x => x.id == route.query.table_id)
-    if (t) {
-      await selectTable(t)
-      router.replace('/pos')
-    }
-  }
-})
-
-import { onUnmounted } from 'vue' // นำเข้า onUnmounted ด้วยที่หัวไฟล์
-onUnmounted(() => {
-  if (posRealtimeChannel) supabase.removeChannel(posRealtimeChannel)
-})
-
 // Logic ทั่วไป
 const addToCart = (item) => {
   if(!selectedTable.value) return Swal.fire({ icon: 'warning', title: 'เลือกโต๊ะก่อนสั่งนะครับ', toast: true, position: 'top', timer: 2000, showConfirmButton: false })
@@ -483,7 +440,46 @@ const updateQty = (index, val) => {
 }
 const openTableModal = () => { loadTables(); showTableModal.value = true }
 const selectTable = async (table) => { selectedTable.value = table; cart.value = []; await fetchTableOrder(table.id); showTableModal.value = false }
-const clearTable = () => { selectedTable.value = null; cart.value = []; activeItems.value = []; currentOrderId.value = null; }
+
+// 🌟 ฟังก์ชัน พับหน้าต่าง/เคลียร์โต๊ะ 🌟
+const clearTable = async () => {
+  if (!selectedTable.value) return;
+
+  // ถ้าโต๊ะถูกเปิด (Occupied) แต่ยังไม่ได้สั่งอาหารเลย
+  if (selectedTable.value.status === 'Occupied' && activeItems.value.length === 0) {
+    const res = await Swal.fire({
+      title: 'ยังไม่มีรายการอาหาร',
+      text: 'คุณต้องการ "ยกเลิกการเปิดโต๊ะ" และล้าง QR Code เดิมทิ้งหรือไม่?',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'คืนเป็นโต๊ะว่าง',
+      cancelButtonText: 'แค่พับหน้าต่าง',
+      confirmButtonColor: '#ef4444'
+    });
+
+    if (res.isConfirmed) {
+      // รีเซ็ตสถานะเป็น Available และล้าง Token (ทำให้ลูกค้ามือถือโดนเตะออก)
+      await supabase.from('tables').update({ 
+        status: 'Available', 
+        session_token: null, 
+        service_request: null 
+      }).eq('id', selectedTable.value.id);
+
+      // ถ้าระบบเคยสร้างบิลเปล่าไว้ ให้ยกเลิกบิลนั้นไปเลย
+      if (currentOrderId.value) {
+        await supabase.from('orders').update({ status: 'Voided' }).eq('id', currentOrderId.value);
+      }
+      
+      Swal.fire({ icon: 'success', title: 'คืนโต๊ะว่างเรียบร้อย', toast: true, position: 'top', timer: 1500, showConfirmButton: false });
+    }
+  }
+
+  selectedTable.value = null;
+  cart.value = [];
+  activeItems.value = [];
+  currentOrderId.value = null;
+  loadTables();
+}
 
 const voidItem = async (item) => {
   const result = await Swal.fire({ title: 'ลบรายการนี้?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444' })
@@ -493,7 +489,7 @@ const voidItem = async (item) => {
   }
 }
 
-// 🌟 ส่งเข้าครัว (บังคับให้ตารางผังโต๊ะเป็น Occupied ทุกครั้งที่สั่ง)
+// 🌟 ส่งเข้าครัว 
 const sendOrderToKitchen = async () => {
   if (!selectedTable.value || cart.value.length === 0) return
   isSubmitting.value = true
@@ -523,7 +519,7 @@ const sendOrderToKitchen = async () => {
   }
 }
 
-// 💵 ชำระเงิน & สมาชิก
+// 💵 ชำระเงิน & สมาชิก & ตัดสต๊อก
 const openPayment = () => {
   paymentMethod.value = 'Cash'
   discountValue.value = ''
@@ -573,7 +569,6 @@ const promptRegisterMember = async () => {
   }
 }
 
-// 🌟 ปรับปรุงระบบชำระเงิน ให้ตัดสต๊อกอัตโนมัติ
 const submitPayment = async () => {
   if (!canCheckout.value || isSubmitting.value) return
   isSubmitting.value = true
@@ -591,7 +586,7 @@ const submitPayment = async () => {
 
     if (orderError) throw orderError
     
-    // 2. เคลียร์โต๊ะให้ว่าง และทำลาย Token
+    // 2. เคลียร์โต๊ะให้ว่าง และทำลาย Token (เพื่อให้มือถือเด้งออก) 🌟
     const { error: tableError } = await supabase.from('tables').update({ 
       status: 'Available', 
       service_request: null, 
@@ -624,13 +619,11 @@ const submitPayment = async () => {
     if (orderItems) {
       const stockToDeduct = {}
       
-      // รวบรวมจำนวนที่ต้องตัด (เผื่อสั่งเมนูเดียวกันหลายรอบ หรือหลายเมนูใช้สต๊อกเดียวกัน)
       orderItems.forEach(item => {
         const invId = item.menus?.inventory_id
         if (invId) stockToDeduct[invId] = (stockToDeduct[invId] || 0) + item.quantity
       })
 
-      // ทำการหักลบและบันทึก Log ทีละรายการ
       for (const [invId, qtyToDeduct] of Object.entries(stockToDeduct)) {
         const { data: invItem } = await supabase.from('inventory').select('item_name, stock_qty').eq('id', invId).single()
         if (invItem) {
@@ -647,7 +640,6 @@ const submitPayment = async () => {
       }
     }
 
-    // 5. เตรียมข้อมูลเปิดหน้าต่างใบเสร็จ
     successChangeAmount.value = changeAmount.value
     lastOrderForReceipt.value = {
       id: currentOrderId.value,
@@ -748,15 +740,22 @@ const printQR = (title, imgUrl) => {
   printWindow.document.close()
 }
 
+// 🌟 ฟังก์ชันสร้าง QR Code โต๊ะ 🌟
 const generateQR = async () => {
   if (!selectedTable.value) return
   
-  // 🌟 สร้าง Token ใหม่และบันทึกลง Database เพื่อป้องกันคนป่วน
+  // 🌟 สร้าง Token ใหม่
   const newToken = Math.random().toString(36).substring(2, 10);
-  await supabase.from('tables').update({ session_token: newToken }).eq('id', selectedTable.value.id);
+  
+  // 🌟 [ปรับปรุง] บังคับเปลี่ยนสถานะเป็น Occupied และบันทึก Token
+  await supabase.from('tables').update({ 
+    session_token: newToken,
+    status: 'Occupied' 
+  }).eq('id', selectedTable.value.id);
+  
   selectedTable.value.session_token = newToken;
+  selectedTable.value.status = 'Occupied';
 
-  // แนบ Token เข้าไปใน URL ลูกค้า
   const customerUrl = `${window.location.origin}/customer?table_id=${selectedTable.value.id}&token=${newToken}&table_name=${encodeURIComponent(selectedTable.value.table_name)}`
   const qrImageSrc = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(customerUrl)}&margin=10`
   
@@ -789,9 +788,32 @@ const generateQR = async () => {
   })
 }
 
+// 🌟 ตัวแปร Real-time ของ POS
+let posRealtimeChannel = null
+
+const setupPosRealtime = () => {
+  posRealtimeChannel = supabase.channel('pos_order_updates')
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'order_details' }, payload => {
+       if (currentOrderId.value && payload.new.order_id === currentOrderId.value) {
+         const idx = activeItems.value.findIndex(item => item.id === payload.new.id)
+         if (idx !== -1) {
+           activeItems.value[idx].kitchen_status = payload.new.kitchen_status
+         }
+       }
+    })
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'order_details' }, payload => {
+       if (currentOrderId.value === payload.new.order_id) {
+         fetchTableOrder(selectedTable.value.id)
+         Swal.fire({ icon: 'info', title: 'มีออเดอร์ใหม่จากลูกค้าโต๊ะนี้!', toast: true, position: 'top', timer: 2000, showConfirmButton: false })
+       }
+    })
+    .subscribe()
+}
+
 onMounted(async () => {
   loadSettings()
   loadMenus()
+  setupPosRealtime()
 
   if (route.query.table_id) {
     await loadTables()
@@ -801,6 +823,10 @@ onMounted(async () => {
       router.replace('/pos')
     }
   }
+})
+
+onUnmounted(() => {
+  if (posRealtimeChannel) supabase.removeChannel(posRealtimeChannel)
 })
 </script>
 

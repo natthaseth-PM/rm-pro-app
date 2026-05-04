@@ -139,7 +139,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue' // 🌟 เพิ่ม onUnmounted
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { supabase } from '../supabase'
 import Swal from 'sweetalert2'
@@ -160,7 +160,7 @@ const isLoading = ref(true)
 const isHistoryLoading = ref(false)
 const isSubmitting = ref(false)
 const showCartSummary = ref(false)
-let realtimeChannel = null // 🌟 ตัวแปรเก็บ Channel
+let realtimeChannel = null
 
 // Computed
 const availableCategories = computed(() => [...new Set(menus.value.map(item => item.category))])
@@ -199,23 +199,38 @@ const fetchMenus = async () => {
   isLoading.value = false
 }
 
-// 🌟 ระบบ Real-time ดักฟังสถานะจากห้องครัว
+// 🌟 ระบบ Real-time ดักฟังสถานะจากห้องครัว และสถานะโต๊ะจาก POS 🌟
 const setupRealtime = () => {
-  realtimeChannel = supabase.channel('customer_order_updates')
+  realtimeChannel = supabase.channel(`customer_updates_table_${tableId.value}`)
+    // 1. ดักฟังสถานะอาหารจากห้องครัว
     .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'order_details' }, payload => {
        const idx = historyItems.value.findIndex(item => item.id === payload.new.id)
        if (idx !== -1) {
          historyItems.value[idx].kitchen_status = payload.new.kitchen_status
-         // ถ้าเสิร์ฟแล้วโชว์ Toast น่ารักๆ ให้ลูกค้า
          if(payload.new.kitchen_status === 'Served') {
             Toast.fire({ icon: 'success', title: `เย้! ${payload.new.menu_name} เสิร์ฟแล้วครับ 🍽️` })
          }
        }
     })
+    // 2. ดักฟังสถานะโต๊ะ (ถ้าร้านกดเช็คบิล/ล้างโต๊ะ)
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'tables', filter: `id=eq.${tableId.value}` }, payload => {
+       // ถ้า Token หายไป หรือ สถานะกลายเป็น ว่าง (Available) ให้เตะออก
+       if (payload.new.status === 'Available' || !payload.new.session_token) {
+         Swal.fire({
+           icon: 'info',
+           title: 'ชำระเงินเรียบร้อยแล้ว!',
+           text: 'ขอบคุณที่ใช้บริการครับ โอกาสหน้าเชิญใหม่นะครับ 🙏',
+           confirmButtonColor: '#10b981',
+           allowOutsideClick: false
+         }).then(() => {
+           // รีเฟรชหน้าเว็บแบบลบ Token ทิ้ง เพื่อให้เข้าเงื่อนไข "QR หมดอายุ"
+           window.location.href = '/customer'
+         })
+       }
+    })
     .subscribe()
 }
 
-// ฟังก์ชันเดิม (ย่อไว้)
 const getItemQty = (id) => cart.value.find(c => c.id === id)?.qty || 0
 const updateCart = (menu, val) => {
   const index = cart.value.findIndex(c => c.id === menu.id)
@@ -293,10 +308,10 @@ const getStatusStyle = (status) => {
 
 onMounted(() => { 
   loadInitialData() 
-  setupRealtime() // 🌟 เริ่มทำงาน Real-time
+  setupRealtime() 
 })
 
 onUnmounted(() => {
-  if (realtimeChannel) supabase.removeChannel(realtimeChannel) // 🌟 ล้างออกเมื่อปิดหน้าต่าง
+  if (realtimeChannel) supabase.removeChannel(realtimeChannel) 
 })
 </script>
