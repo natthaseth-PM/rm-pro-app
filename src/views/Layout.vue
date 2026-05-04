@@ -9,46 +9,23 @@
       
       <nav class="flex-1 py-6 flex flex-col gap-2 px-3 overflow-y-auto">
 
-        <router-link to="/dashboard" class="flex items-center p-3 rounded-xl transition-all duration-200 w-full text-gray-400 hover:bg-gray-700 hover:text-white" active-class="bg-primary text-white shadow-md !text-white">
-          <i class="fa-solid fa-chart-pie w-6 text-center text-lg"></i>
-          <span class="ml-3 font-medium hidden lg:block text-left flex-1">ภาพรวมสถิติ (Dashboard)</span>
-        </router-link>
-        
-        <router-link to="/pos" class="flex items-center p-3 rounded-xl transition-all duration-200 w-full text-gray-400 hover:bg-gray-700 hover:text-white" active-class="bg-primary text-white shadow-md !text-white">
-          <i class="fa-solid fa-cash-register w-6 text-center text-lg"></i>
-          <span class="ml-3 font-medium hidden lg:block text-left flex-1">POS (รับออเดอร์)</span>
-        </router-link>
-
-        <router-link to="/tables" class="flex items-center p-3 rounded-xl transition-all duration-200 w-full text-gray-400 hover:bg-gray-700 hover:text-white" active-class="bg-primary text-white shadow-md !text-white">
-          <i class="fa-solid fa-border-all w-6 text-center text-lg"></i>
-          <span class="ml-3 font-medium hidden lg:block text-left flex-1">ผังโต๊ะรวม</span>
-        </router-link>
-
-        <router-link to="/kitchen" class="flex items-center p-3 rounded-xl transition-all duration-200 w-full text-gray-400 hover:bg-gray-700 hover:text-white" active-class="bg-primary text-white shadow-md !text-white">
-          <i class="fa-solid fa-fire-burner w-6 text-center text-lg"></i>
-          <span class="ml-3 font-medium hidden lg:block text-left flex-1">Kitchen (ห้องครัว)</span>
-        </router-link>
-
-        <router-link to="/history" class="flex items-center p-3 rounded-xl transition-all duration-200 w-full text-gray-400 hover:bg-gray-700 hover:text-white" active-class="bg-primary text-white shadow-md !text-white">
-          <i class="fa-solid fa-clock-rotate-left w-6 text-center text-lg"></i>
-          <span class="ml-3 font-medium hidden lg:block text-left flex-1">ประวัติบิล (History)</span>
-        </router-link>
-
-        <router-link to="/reports" class="flex items-center p-3 rounded-xl transition-all duration-200 w-full text-gray-400 hover:bg-gray-700 hover:text-white" active-class="bg-primary text-white shadow-md !text-white">
-          <i class="fa-solid fa-chart-line w-6 text-center text-lg"></i>
-          <span class="ml-3 font-medium hidden lg:block text-left flex-1">รายงาน (Reports)</span>
-        </router-link>
-
-        <router-link to="/settings" class="flex items-center p-3 rounded-xl transition-all duration-200 w-full text-gray-400 hover:bg-gray-700 hover:text-white" active-class="bg-primary text-white shadow-md !text-white">
-          <i class="fa-solid fa-cogs w-6 text-center text-lg"></i>
-          <span class="ml-3 font-medium hidden lg:block text-left flex-1">ตั้งค่าระบบ (Settings)</span>
-        </router-link>
+        <template v-for="menu in menuItems" :key="menu.path">
+          <router-link 
+            v-if="hasAccess(menu.permission)"
+            :to="menu.path" 
+            class="flex items-center p-3 rounded-xl transition-all duration-200 w-full text-gray-400 hover:bg-gray-700 hover:text-white" 
+            active-class="bg-primary text-white shadow-md !text-white"
+          >
+            <i :class="menu.icon" class="w-6 text-center text-lg"></i>
+            <span class="ml-3 font-medium hidden lg:block text-left flex-1">{{ menu.title }}</span>
+          </router-link>
+        </template>
 
       </nav>
       
       <div class="p-4 border-t border-gray-700 flex items-center justify-between shrink-0">
         <div class="flex items-center">
-          <div class="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center text-sm font-bold uppercase">{{ user?.username.charAt(0) || 'U' }}</div>
+          <div class="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center text-sm font-bold uppercase">{{ user?.username?.charAt(0) || 'U' }}</div>
           <div class="ml-3 hidden lg:block text-sm">
             <p class="font-bold text-white capitalize">{{ user?.username || 'Guest' }}</p>
             <p class="text-primary text-xs font-bold">{{ user?.role || 'Unknown' }}</p>
@@ -73,16 +50,31 @@ import Swal from 'sweetalert2'
 const router = useRouter()
 const user = ref(null)
 
+// รายการเมนูทั้งหมดในระบบ
+const menuItems = [
+  { path: '/dashboard', title: 'Dashboard', icon: 'fa-solid fa-chart-pie', permission: 'dashboard' },
+  { path: '/pos', title: 'POS (รับออเดอร์)', icon: 'fa-solid fa-cash-register', permission: 'pos' },
+  { path: '/tables', title: 'ผังโต๊ะรวม', icon: 'fa-solid fa-border-all', permission: 'tables' },
+  { path: '/kitchen', title: 'ห้องครัว', icon: 'fa-solid fa-fire-burner', permission: 'kitchen' },
+  { path: '/history', title: 'ประวัติบิล', icon: 'fa-solid fa-clock-rotate-left', permission: 'history' },
+  { path: '/reports', title: 'รายงาน', icon: 'fa-solid fa-chart-line', permission: 'reports' },
+  { path: '/settings', title: 'ตั้งค่าระบบ', icon: 'fa-solid fa-cogs', permission: 'settings' },
+]
+
 onMounted(() => {
-  // ดึงข้อมูลผู้ใช้ตอนโหลดหน้า
   const savedUser = localStorage.getItem('rmpro_user')
   if (savedUser) {
     user.value = JSON.parse(savedUser)
   } else {
-    // ถ้าไม่มีข้อมูล ให้เด้งกลับไปหน้า Login
     router.push('/login')
   }
 })
+
+// 🌟 ฟังก์ชันเช็คสิทธิ์แสดงเมนู 🌟
+const hasAccess = (permission) => {
+  if (!user.value || !user.value.allowed_pages) return false
+  return user.value.allowed_pages.split(',').includes(permission)
+}
 
 const handleLogout = () => {
   Swal.fire({

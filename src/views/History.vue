@@ -254,11 +254,11 @@ const openBillDetail = async (bill) => {
   isDetailLoading.value = false
 }
 
-// 🛑 Void Bill
+// 🛑 ฟังก์ชันยกเลิกบิล (Void) และคืนสต๊อก
 const confirmVoidBill = async (orderId) => {
   const res = await Swal.fire({
     title: 'ยกเลิกบิลนี้?',
-    text: 'ยอดเงินจะถูกหักออกและบิลจะกลายเป็นสถานะ Void',
+    text: 'ยอดเงินจะถูกหักออก และระบบจะคืนสต๊อกสินค้าให้อัตโนมัติ',
     icon: 'warning',
     showCancelButton: true,
     confirmButtonColor: '#ef4444',
@@ -267,8 +267,42 @@ const confirmVoidBill = async (orderId) => {
   })
 
   if (res.isConfirmed) {
+    // 1. เปลี่ยนสถานะบิลเป็น Voided
     await supabase.from('orders').update({ status: 'Voided' }).eq('id', orderId)
-    Swal.fire({ icon: 'success', title: 'ยกเลิกบิลสำเร็จ', timer: 1500, showConfirmButton: false })
+    
+    // 📦 2. ระบบคืนสต๊อกอัตโนมัติ (Auto Inventory Refund)
+    const { data: orderItems } = await supabase
+      .from('order_details')
+      .select('quantity, menus(inventory_id)')
+      .eq('order_id', orderId)
+      .neq('kitchen_status', 'Cancelled')
+      .neq('kitchen_status', 'Voided')
+      
+    if (orderItems) {
+      const stockToRefund = {}
+      orderItems.forEach(item => {
+        const invId = item.menus?.inventory_id
+        if (invId) stockToRefund[invId] = (stockToRefund[invId] || 0) + item.quantity
+      })
+
+      // ทำการบวกคืนคลังและบันทึก Log
+      for (const [invId, qtyToRefund] of Object.entries(stockToRefund)) {
+        const { data: invItem } = await supabase.from('inventory').select('item_name, stock_qty').eq('id', invId).single()
+        if (invItem) {
+          const newQty = Number(invItem.stock_qty) + qtyToRefund
+          
+          await supabase.from('inventory').update({ stock_qty: newQty }).eq('id', invId)
+          await supabase.from('inventory_logs').insert([{
+            item_name: invItem.item_name,
+            action: `ยกเลิกบิล (Void #${orderId.split('-')[0].toUpperCase()})`,
+            qty_change: qtyToRefund,
+            remaining: newQty
+          }])
+        }
+      }
+    }
+
+    Swal.fire({ icon: 'success', title: 'ยกเลิกบิลสำเร็จ พร้อมคืนสต๊อกแล้ว', timer: 2500, showConfirmButton: false })
     showBillDetailModal.value = false
     loadBillHistory()
   }

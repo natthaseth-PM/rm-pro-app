@@ -527,12 +527,14 @@ const promptRegisterMember = async () => {
   }
 }
 
+// 🌟 ปรับปรุงระบบชำระเงิน ให้ตัดสต๊อกอัตโนมัติ
 const submitPayment = async () => {
   if (!canCheckout.value || isSubmitting.value) return
   isSubmitting.value = true
   try {
     const finalReceived = paymentMethod.value === 'Cash' ? Number(numpadValue.value) : netTotal.value
     
+    // 1. อัปเดตสถานะบิลเป็น Paid
     const { error: orderError } = await supabase.from('orders').update({ 
       status: 'Paid', 
       total_amount: netTotal.value,
@@ -543,9 +545,11 @@ const submitPayment = async () => {
 
     if (orderError) throw orderError
     
+    // 2. เคลียร์โต๊ะให้ว่าง
     const { error: tableError } = await supabase.from('tables').update({ status: 'Available', service_request: '' }).eq('id', selectedTable.value.id)
     if (tableError) throw tableError
 
+    // 3. จัดการแต้มสมาชิก
     if (memberInfo.value) {
       const earnRate = Number(storeSettings.value.PointEarnRate) || 100
       const earnedPoints = Math.floor(netTotal.value / earnRate)
@@ -559,6 +563,41 @@ const submitPayment = async () => {
       if (memberError) throw memberError
     }
 
+    // 📦 4. ระบบตัดสต๊อกอัตโนมัติ (Auto Inventory Deduction)
+    const { data: orderItems } = await supabase
+      .from('order_details')
+      .select('quantity, menus(inventory_id)')
+      .eq('order_id', currentOrderId.value)
+      .neq('kitchen_status', 'Cancelled')
+      .neq('kitchen_status', 'Voided')
+
+    if (orderItems) {
+      const stockToDeduct = {}
+      
+      // รวบรวมจำนวนที่ต้องตัด (เผื่อสั่งเมนูเดียวกันหลายรอบ หรือหลายเมนูใช้สต๊อกเดียวกัน)
+      orderItems.forEach(item => {
+        const invId = item.menus?.inventory_id
+        if (invId) stockToDeduct[invId] = (stockToDeduct[invId] || 0) + item.quantity
+      })
+
+      // ทำการหักลบและบันทึก Log ทีละรายการ
+      for (const [invId, qtyToDeduct] of Object.entries(stockToDeduct)) {
+        const { data: invItem } = await supabase.from('inventory').select('item_name, stock_qty').eq('id', invId).single()
+        if (invItem) {
+          const newQty = Number(invItem.stock_qty) - qtyToDeduct
+          
+          await supabase.from('inventory').update({ stock_qty: newQty }).eq('id', invId)
+          await supabase.from('inventory_logs').insert([{
+            item_name: invItem.item_name,
+            action: `ขายหน้าร้าน (บิล #${currentOrderId.value.split('-')[0].toUpperCase()})`,
+            qty_change: -qtyToDeduct,
+            remaining: newQty
+          }])
+        }
+      }
+    }
+
+    // 5. เตรียมข้อมูลเปิดหน้าต่างใบเสร็จ
     successChangeAmount.value = changeAmount.value
     lastOrderForReceipt.value = {
       id: currentOrderId.value,
