@@ -424,6 +424,52 @@ const fetchTableOrder = async (tableId) => {
   }
 }
 
+// ... โค้ด fetchTableOrder เดิม ...
+
+// 🌟 เพิ่มตัวแปรและฟังก์ชัน Real-time ให้ POS
+let posRealtimeChannel = null
+
+const setupPosRealtime = () => {
+  posRealtimeChannel = supabase.channel('pos_order_updates')
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'order_details' }, payload => {
+       // ถ้าห้องครัวอัปเดตสถานะ ให้หน้า POS อัปเดตตาม
+       if (currentOrderId.value && payload.new.order_id === currentOrderId.value) {
+         const idx = activeItems.value.findIndex(item => item.id === payload.new.id)
+         if (idx !== -1) {
+           activeItems.value[idx].kitchen_status = payload.new.kitchen_status
+         }
+       }
+    })
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'order_details' }, payload => {
+       // ถ้าลูกค้ากดสั่งผ่านมือถือ ให้บิลบนจอแคชเชียร์อัปเดตอัตโนมัติ
+       if (currentOrderId.value === payload.new.order_id) {
+         fetchTableOrder(selectedTable.value.id)
+         Swal.fire({ icon: 'info', title: 'มีออเดอร์ใหม่จากลูกค้าโต๊ะนี้!', toast: true, position: 'top', timer: 2000, showConfirmButton: false })
+       }
+    })
+    .subscribe()
+}
+
+onMounted(async () => {
+  loadSettings()
+  loadMenus()
+  setupPosRealtime() // 🌟 เริ่มทำงาน Real-time
+
+  if (route.query.table_id) {
+    await loadTables()
+    const t = tables.value.find(x => x.id == route.query.table_id)
+    if (t) {
+      await selectTable(t)
+      router.replace('/pos')
+    }
+  }
+})
+
+import { onUnmounted } from 'vue' // นำเข้า onUnmounted ด้วยที่หัวไฟล์
+onUnmounted(() => {
+  if (posRealtimeChannel) supabase.removeChannel(posRealtimeChannel)
+})
+
 // Logic ทั่วไป
 const addToCart = (item) => {
   if(!selectedTable.value) return Swal.fire({ icon: 'warning', title: 'เลือกโต๊ะก่อนสั่งนะครับ', toast: true, position: 'top', timer: 2000, showConfirmButton: false })
@@ -545,8 +591,12 @@ const submitPayment = async () => {
 
     if (orderError) throw orderError
     
-    // 2. เคลียร์โต๊ะให้ว่าง
-    const { error: tableError } = await supabase.from('tables').update({ status: 'Available', service_request: '' }).eq('id', selectedTable.value.id)
+    // 2. เคลียร์โต๊ะให้ว่าง และทำลาย Token
+    const { error: tableError } = await supabase.from('tables').update({ 
+      status: 'Available', 
+      service_request: null, 
+      session_token: null 
+    }).eq('id', selectedTable.value.id)
     if (tableError) throw tableError
 
     // 3. จัดการแต้มสมาชิก
@@ -698,9 +748,16 @@ const printQR = (title, imgUrl) => {
   printWindow.document.close()
 }
 
-const generateQR = () => {
+const generateQR = async () => {
   if (!selectedTable.value) return
-  const customerUrl = `${window.location.origin}/customer?table_id=${selectedTable.value.id}&table_name=${encodeURIComponent(selectedTable.value.table_name)}`
+  
+  // 🌟 สร้าง Token ใหม่และบันทึกลง Database เพื่อป้องกันคนป่วน
+  const newToken = Math.random().toString(36).substring(2, 10);
+  await supabase.from('tables').update({ session_token: newToken }).eq('id', selectedTable.value.id);
+  selectedTable.value.session_token = newToken;
+
+  // แนบ Token เข้าไปใน URL ลูกค้า
+  const customerUrl = `${window.location.origin}/customer?table_id=${selectedTable.value.id}&token=${newToken}&table_name=${encodeURIComponent(selectedTable.value.table_name)}`
   const qrImageSrc = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(customerUrl)}&margin=10`
   
   const htmlStr = `

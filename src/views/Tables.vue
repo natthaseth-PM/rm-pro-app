@@ -67,6 +67,10 @@
             <span class="font-black text-gray-900 text-lg leading-none mt-1">฿{{ t.total_amount ? t.total_amount.toLocaleString() : '0' }}</span>
           </div>
 
+          <div v-if="t.service_request" @click.stop="clearService(t.id)" class="absolute -top-3 -left-3 bg-red-500 text-white px-3 py-1.5 rounded-full font-black text-xs shadow-lg animate-bounce z-20 flex items-center gap-1 cursor-pointer border-2 border-white" title="คลิกเพื่อเคลียร์แจ้งเตือน">
+            <i class="fa-solid fa-bell"></i> {{ t.service_request }}
+          </div>
+
         </button>
 
       </div>
@@ -118,6 +122,11 @@ const setupRealtime = () => {
     .subscribe()
 }
 
+const clearService = async (id) => {
+  await supabase.from('tables').update({ service_request: null }).eq('id', id)
+  fetchData()
+}
+
 onMounted(() => {
   fetchData()
   setupRealtime()
@@ -131,3 +140,4 @@ onUnmounted(() => {
 <style scoped>
 .no-scrollbar::-webkit-scrollbar { display: none; }
 </style>
+

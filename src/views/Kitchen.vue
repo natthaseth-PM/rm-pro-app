@@ -1,81 +1,82 @@
 <template>
-  <div class="h-full flex flex-col bg-gray-900 text-white overflow-hidden">
-    <header class="bg-gray-800 px-6 py-4 flex justify-between items-center shrink-0 border-b border-gray-700 shadow-md">
-      <div class="flex items-center gap-3">
-        <div class="w-12 h-12 bg-red-500 rounded-xl flex items-center justify-center text-2xl shadow-lg shadow-red-500/30">
+  <div class="h-screen w-full bg-[#0f172a] text-gray-100 flex flex-col font-sans overflow-hidden">
+    
+    <header class="bg-[#1e293b] px-6 py-4 flex flex-col md:flex-row justify-between items-start md:items-center shrink-0 border-b border-gray-800 shadow-md gap-4">
+      <div class="flex items-center gap-4">
+        <div class="w-14 h-14 bg-red-500 rounded-2xl flex items-center justify-center text-3xl shadow-lg shadow-red-500/20 text-white">
           <i class="fa-solid fa-fire-burner"></i>
         </div>
         <div>
-          <h1 class="text-2xl font-black tracking-wide">Kitchen Display System</h1>
-          <p class="text-xs text-gray-400 font-bold"><i class="fa-solid fa-circle text-green-500 text-[8px] animate-pulse mr-1"></i> ระบบเชื่อมต่อ Real-time ทำงานปกติ</p>
+          <h1 class="text-2xl md:text-3xl font-black tracking-wide text-white">KDS (Kitchen Display)</h1>
+          <p class="text-xs text-gray-400 font-bold mt-1"><i class="fa-solid fa-circle text-green-500 text-[8px] animate-pulse mr-1"></i> เชื่อมต่อออเดอร์เรียลไทม์</p>
         </div>
       </div>
-      <div class="flex gap-2 bg-gray-700 p-1.5 rounded-xl">
-        <button @click="filter = 'All'" :class="filter === 'All' ? 'bg-gray-900 text-white' : 'text-gray-400 hover:text-white'" class="px-4 py-2 rounded-lg font-bold text-sm transition-all">ทั้งหมด</button>
-        <button @click="filter = 'Pending'" :class="filter === 'Pending' ? 'bg-orange-500 text-white' : 'text-gray-400 hover:text-white'" class="px-4 py-2 rounded-lg font-bold text-sm transition-all">รอดำเนินการ</button>
-        <button @click="filter = 'Cooking'" :class="filter === 'Cooking' ? 'bg-blue-500 text-white' : 'text-gray-400 hover:text-white'" class="px-4 py-2 rounded-lg font-bold text-sm transition-all">กำลังปรุง</button>
+      
+      <div class="flex bg-gray-900 p-1.5 rounded-2xl w-full md:w-auto">
+        <button @click="station = 'Kitchen'" :class="station === 'Kitchen' ? 'bg-orange-600 text-white shadow-md' : 'text-gray-400 hover:text-white'" class="flex-1 md:flex-none px-6 py-3 rounded-xl font-black md:text-lg transition-all flex items-center justify-center gap-2"><i class="fa-solid fa-fire"></i> โซนอาหาร</button>
+        <button @click="station = 'Bar'" :class="station === 'Bar' ? 'bg-blue-600 text-white shadow-md' : 'text-gray-400 hover:text-white'" class="flex-1 md:flex-none px-6 py-3 rounded-xl font-black md:text-lg transition-all flex items-center justify-center gap-2"><i class="fa-solid fa-martini-glass-citrus"></i> บาร์น้ำ</button>
       </div>
     </header>
 
-    <main class="flex-1 overflow-x-auto overflow-y-hidden p-6 no-scrollbar">
-      <div v-if="isLoading" class="h-full flex flex-col items-center justify-center text-gray-500">
-        <i class="fa-solid fa-circle-notch fa-spin text-5xl mb-4"></i>
-        <p class="font-bold text-xl">กำลังโหลดรายการอาหาร...</p>
-      </div>
-
-      <div v-else-if="groupedOrders.length === 0" class="h-full flex flex-col items-center justify-center text-gray-600">
-        <i class="fa-solid fa-check-double text-6xl mb-4"></i>
-        <h2 class="text-3xl font-black">ไม่มีออเดอร์ค้าง</h2>
-        <p class="font-medium mt-2">ยอดเยี่ยมมาก! ห้องครัวเคลียร์ออเดอร์หมดแล้ว</p>
-      </div>
-
-      <div v-else class="flex gap-6 h-full items-start">
-        <div v-for="order in groupedOrders" :key="order.order_id" class="w-80 shrink-0 bg-gray-800 rounded-2xl flex flex-col max-h-full border border-gray-700 shadow-xl overflow-hidden animate-[fadeIn_0.3s_ease-out]">
+    <main class="flex-1 overflow-x-auto overflow-y-hidden p-6 flex gap-6 no-scrollbar bg-[#0f172a]">
+      
+      <div class="w-[380px] shrink-0 flex flex-col bg-[#1e293b] rounded-[2rem] border border-gray-800 max-h-full shadow-2xl relative overflow-hidden">
+        <div class="bg-gradient-to-r from-red-500/20 to-transparent border-b border-red-500/20 p-5 flex justify-between items-center">
+          <h2 class="text-red-400 font-black text-xl flex items-center"><i class="fa-solid fa-bell text-red-500 mr-3 animate-ring text-2xl"></i> รอทำ (New)</h2>
+          <span class="bg-red-500 text-white px-3 py-1 rounded-full text-sm font-black shadow-lg shadow-red-500/30">{{ pendingItems.length }}</span>
+        </div>
+        
+        <div class="flex-1 overflow-y-auto p-4 space-y-4 no-scrollbar">
+          <div v-if="pendingItems.length === 0" class="text-center text-gray-600 font-bold py-10 mt-10"><i class="fa-solid fa-mug-hot text-6xl block mb-4 opacity-50"></i>ไม่มีออเดอร์ใหม่</div>
           
-          <div class="p-4 bg-gray-700 flex justify-between items-center border-b border-gray-600">
-            <div>
-              <h3 class="font-black text-xl text-white">{{ order.table_name }}</h3>
-              <p class="text-xs text-gray-400 font-bold mt-0.5"><i class="fa-regular fa-clock mr-1"></i> {{ formatTime(order.created_at) }}</p>
-            </div>
-            <div class="text-center bg-gray-800 px-3 py-1.5 rounded-lg border border-gray-600">
-              <span class="text-xs text-gray-400 block font-bold leading-none mb-1">จำนวน</span>
-              <span class="font-black text-lg text-white leading-none">{{ order.items.length }}</span>
-            </div>
-          </div>
-
-          <div class="flex-1 overflow-y-auto p-3 space-y-3 no-scrollbar">
-            <div v-for="item in order.items" :key="item.id" class="bg-gray-900 p-4 rounded-xl border border-gray-700 relative overflow-hidden group transition-all">
-              <div class="absolute left-0 top-0 bottom-0 w-1.5" :class="item.kitchen_status === 'Pending' ? 'bg-orange-500' : 'bg-blue-500'"></div>
-              
-              <div class="flex justify-between items-start mb-3 pl-2">
-                <h4 class="font-bold text-lg leading-tight pr-2">{{ item.menu_name }}</h4>
-                <div class="font-black text-xl bg-gray-800 w-10 h-10 rounded-lg flex items-center justify-center text-white shrink-0 border border-gray-700 shadow-inner">
-                  x{{ item.quantity }}
+          <div v-for="item in pendingItems" :key="item.id" class="bg-[#2a374a] rounded-2xl border border-gray-700 p-5 relative overflow-hidden shadow-lg animate-[fadeIn_0.3s_ease-out]">
+            <div class="absolute left-0 top-0 bottom-0 w-2 bg-red-500"></div>
+            <div class="flex justify-between items-start mb-4 pl-2">
+              <div>
+                <h3 class="font-black text-xl text-white leading-tight mb-1">{{ item.menu_name }}</h3>
+                <span class="inline-flex items-center text-xs font-black text-orange-400 bg-orange-500/10 px-2.5 py-1 rounded-md border border-orange-500/20 uppercase tracking-widest mb-1"><i class="fa-solid fa-map-pin mr-1"></i> โต๊ะ: {{ getTableName(item.order_id) }}</span>
+                <div class="flex items-center gap-1 mt-1">
+                  <span :class="getWaitTimeClass(item.created_at)" class="px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider shadow-sm"><i class="fa-regular fa-clock mr-1"></i> รอมา {{ getWaitTime(item.created_at) }}</span>
                 </div>
               </div>
-
-              <div class="flex gap-2 pl-2">
-                <button v-if="item.kitchen_status === 'Pending'" @click="updateStatus(item.id, 'Cooking')" class="flex-1 bg-blue-600/20 text-blue-400 border border-blue-600/50 hover:bg-blue-500 hover:text-white py-2.5 rounded-lg font-bold text-sm transition-all active:scale-95">
-                  <i class="fa-solid fa-fire mr-1"></i> เริ่มทำ
-                </button>
-                <button v-if="item.kitchen_status === 'Cooking'" @click="updateStatus(item.id, 'Served')" class="flex-1 bg-green-600/20 text-green-400 border border-green-600/50 hover:bg-green-500 hover:text-white py-2.5 rounded-lg font-bold text-sm transition-all active:scale-95">
-                  <i class="fa-solid fa-bell-concierge mr-1"></i> เสิร์ฟแล้ว
-                </button>
-                <button @click="cancelItem(item.id)" class="w-10 bg-gray-800 text-gray-500 hover:text-red-500 hover:bg-red-500/20 py-2.5 rounded-lg font-bold transition-all shrink-0">
-                  <i class="fa-solid fa-xmark"></i>
-                </button>
-              </div>
+              <div class="bg-red-500/20 text-red-400 font-black text-2xl w-14 h-14 rounded-2xl flex items-center justify-center border border-red-500/30 shadow-inner shrink-0">x{{ item.quantity }}</div>
+            </div>
+            <div class="flex gap-2 pl-2">
+              <button @click="updateStatus(item.id, 'Cooking')" class="flex-1 bg-blue-600 hover:bg-blue-500 text-white py-4 rounded-xl font-black transition-all active:scale-95 text-lg shadow-lg shadow-blue-500/30"><i class="fa-solid fa-fire-burner mr-2"></i> เริ่มทำ</button>
+              <button @click="cancelItem(item.id)" class="w-14 bg-gray-700 hover:bg-red-600 text-gray-400 hover:text-white rounded-xl font-black transition-all text-xl"><i class="fa-solid fa-xmark"></i></button>
             </div>
           </div>
-
-          <div class="p-3 bg-gray-800 border-t border-gray-700 mt-auto">
-            <button @click="serveAll(order.items)" class="w-full bg-gray-700 hover:bg-green-600 text-white font-bold py-3 rounded-xl transition-colors flex items-center justify-center gap-2">
-               <i class="fa-solid fa-check-double"></i> เสิร์ฟทั้งโต๊ะ
-            </button>
-          </div>
-
         </div>
       </div>
+
+      <div class="w-[380px] shrink-0 flex flex-col bg-[#1e293b] rounded-[2rem] border border-gray-800 max-h-full shadow-2xl relative overflow-hidden">
+        <div class="bg-gradient-to-r from-blue-500/20 to-transparent border-b border-blue-500/20 p-5 flex justify-between items-center">
+          <h2 class="text-blue-400 font-black text-xl flex items-center"><i class="fa-solid fa-fire text-blue-500 mr-3 text-2xl"></i> กำลังปรุง (Cooking)</h2>
+          <span class="bg-blue-500 text-white px-3 py-1 rounded-full text-sm font-black shadow-lg shadow-blue-500/30">{{ cookingItems.length }}</span>
+        </div>
+        
+        <div class="flex-1 overflow-y-auto p-4 space-y-4 no-scrollbar">
+          <div v-if="cookingItems.length === 0" class="text-center text-gray-600 font-bold py-10 mt-10"><i class="fa-solid fa-fire-burner text-6xl block mb-4 opacity-50"></i>ยังไม่มีรายการที่กำลังทำ</div>
+          
+          <div v-for="item in cookingItems" :key="item.id" class="bg-[#2a374a] rounded-2xl border border-blue-500/30 p-5 relative overflow-hidden shadow-lg shadow-blue-900/20 animate-[fadeIn_0.3s_ease-out]">
+            <div class="absolute left-0 top-0 bottom-0 w-2 bg-blue-500"></div>
+            <div class="flex justify-between items-start mb-4 pl-2">
+              <div>
+                <h3 class="font-black text-xl text-white leading-tight mb-1">{{ item.menu_name }}</h3>
+                <span class="inline-flex items-center text-xs font-black text-orange-400 bg-orange-500/10 px-2.5 py-1 rounded-md border border-orange-500/20 uppercase tracking-widest mb-1"><i class="fa-solid fa-map-pin mr-1"></i> โต๊ะ: {{ getTableName(item.order_id) }}</span>
+                <div class="flex items-center gap-1 mt-1">
+                  <span :class="getWaitTimeClass(item.created_at)" class="px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider shadow-sm"><i class="fa-solid fa-stopwatch mr-1"></i> ทำมาแล้ว {{ getWaitTime(item.created_at) }}</span>
+                </div>
+              </div>
+              <div class="bg-blue-500/20 text-blue-400 font-black text-2xl w-14 h-14 rounded-2xl flex items-center justify-center border border-blue-500/30 shadow-inner shrink-0">x{{ item.quantity }}</div>
+            </div>
+            <div class="pl-2">
+              <button @click="updateStatus(item.id, 'Served')" class="w-full bg-emerald-500 hover:bg-emerald-400 text-white py-5 rounded-xl font-black transition-all active:scale-95 text-xl shadow-lg shadow-emerald-500/30"><i class="fa-solid fa-bell-concierge mr-2"></i> เสิร์ฟแล้ว</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </main>
   </div>
 </template>
@@ -85,109 +86,98 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { supabase } from '../supabase'
 import Swal from 'sweetalert2'
 
-const rawOrders = ref([])
-const tables = ref([])
-const filter = ref('All')
-const isLoading = ref(true)
+const station = ref('Kitchen') 
+const rawDetails = ref([])
+const tablesMap = ref({})
 let realtimeChannel = null
 
-// 📡 ดึงข้อมูลเริ่มต้น
-const fetchKitchenData = async () => {
-  // ดึงโต๊ะมาทำ Map ชื่อโต๊ะ
-  const { data: tablesData } = await supabase.from('tables').select('id, table_name')
-  tables.value = tablesData || []
+// 🌟 สร้าง State จับเวลาปัจจุบัน
+const now = ref(new Date())
+let timerInterval = null
 
-  // ดึง Order Details ที่ยังไม่เสร็จ (Pending, Cooking) และเชื่อมหา Order ID
+const fetchKitchenData = async () => {
+  const { data: tData } = await supabase.from('tables').select('id, table_name')
+  if (tData) {
+    tablesMap.value = tData.reduce((acc, curr) => {
+      acc[curr.id] = curr.table_name
+      return acc
+    }, {})
+  }
+
   const { data: detailsData } = await supabase
     .from('order_details')
-    .select(`*, orders (table_id)`)
+    .select(`*, orders!inner(table_id), menus!inner(category)`)
     .in('kitchen_status', ['Pending', 'Cooking'])
     .order('created_at', { ascending: true })
 
-  rawOrders.value = detailsData || []
-  isLoading.value = false
+  rawDetails.value = detailsData || []
 }
 
-// 📦 จัดกลุ่มออเดอร์ตามบิลและเรียงคิว
-const groupedOrders = computed(() => {
-  let list = rawOrders.value
-  
-  if (filter.value !== 'All') {
-    list = list.filter(item => item.kitchen_status === filter.value)
-  }
-
-  const group = {}
-  list.forEach(item => {
-    if (!group[item.order_id]) {
-      const tId = item.orders?.table_id
-      const tableObj = tables.value.find(t => t.id === tId)
-      group[item.order_id] = {
-        order_id: item.order_id,
-        table_name: tableObj ? tableObj.table_name : 'ไม่ระบุโต๊ะ',
-        created_at: item.created_at,
-        items: []
-      }
-    }
-    group[item.order_id].items.push(item)
-  })
-
-  return Object.values(group).sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
+const stationItems = computed(() => {
+  if (station.value === 'Bar') return rawDetails.value.filter(item => item.menus?.category === 'เครื่องดื่ม')
+  else return rawDetails.value.filter(item => item.menus?.category !== 'เครื่องดื่ม')
 })
 
-// 🔧 ฟังก์ชันอัปเดตสถานะ
-const updateStatus = async (id, newStatus) => {
-  const { error } = await supabase.from('order_details').update({ kitchen_status: newStatus }).eq('id', id)
-  if (error) {
-    Swal.fire({ icon: 'error', title: 'อัปเดตล้มเหลว', toast: true, position: 'top', timer: 2000 })
-  } else {
-    // อัปเดตใน UI ทันทีไม่ต้องรอ Realtime เพื่อความลื่นไหล
-    const idx = rawOrders.value.findIndex(o => o.id === id)
-    if (idx > -1) {
-       if (newStatus === 'Served' || newStatus === 'Cancelled') {
-           rawOrders.value.splice(idx, 1)
-       } else {
-           rawOrders.value[idx].kitchen_status = newStatus
-       }
-    }
-  }
+const pendingItems = computed(() => stationItems.value.filter(item => item.kitchen_status === 'Pending'))
+const cookingItems = computed(() => stationItems.value.filter(item => item.kitchen_status === 'Cooking'))
+
+const getTableName = (orderId) => {
+  const item = rawDetails.value.find(i => i.order_id === orderId)
+  return item && item.orders ? (tablesMap.value[item.orders.table_id] || 'ไม่ระบุ') : 'ไม่ระบุ'
 }
 
-const serveAll = async (items) => {
-  const ids = items.map(i => i.id)
-  await supabase.from('order_details').update({ kitchen_status: 'Served' }).in('id', ids)
-  rawOrders.value = rawOrders.value.filter(o => !ids.includes(o.id))
-  Swal.fire({ icon: 'success', title: 'เสิร์ฟเรียบร้อย', toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 })
+// 🌟 ฟังก์ชันคำนวณเวลาและสีแจ้งเตือน
+const getWaitTime = (createdAt) => {
+  const diffMins = Math.floor((now.value - new Date(createdAt)) / 60000)
+  if (diffMins < 1) return 'เพิ่งสั่ง'
+  if (diffMins >= 60) return `${Math.floor(diffMins/60)} ชม. ${diffMins%60} น.`
+  return `${diffMins} นาที`
+}
+
+const getWaitTimeClass = (createdAt) => {
+  const diffMins = Math.floor((now.value - new Date(createdAt)) / 60000)
+  if (diffMins >= 15) return 'bg-red-500 text-white animate-pulse' // เกิน 15 นาที แดงกระพริบ
+  if (diffMins >= 10) return 'bg-orange-500 text-white' // เกิน 10 นาที ส้มเตือน
+  return 'bg-green-600/30 text-green-400 border border-green-600/50' // ปกติ
+}
+
+const updateStatus = async (id, newStatus) => {
+  const { error } = await supabase.from('order_details').update({ kitchen_status: newStatus }).eq('id', id)
+  if (!error) {
+    const idx = rawDetails.value.findIndex(o => o.id === id)
+    if (idx > -1) {
+       if (newStatus === 'Served' || newStatus === 'Cancelled') rawDetails.value.splice(idx, 1)
+       else rawDetails.value[idx].kitchen_status = newStatus
+    }
+  }
 }
 
 const cancelItem = async (id) => {
-  const result = await Swal.fire({ title: 'ยกเลิกรายการนี้?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444' })
+  const result = await Swal.fire({ title: 'ยกเลิกออเดอร์นี้?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444' })
   if (result.isConfirmed) updateStatus(id, 'Cancelled')
 }
 
-const formatTime = (timeStr) => {
-  if (!timeStr) return ''
-  const d = new Date(timeStr)
-  return d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })
-}
-
-// ⚡ เปิดระบบ Real-time (รอรับออเดอร์แบบเด้งสดๆ)
 const setupRealtime = () => {
-  realtimeChannel = supabase
-    .channel('kitchen_updates')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'order_details' }, payload => {
-       // ถ้ามีการเปลี่ยนแปลงใน Database ให้โหลดข้อมูลใหม่ทันที
-       fetchKitchenData()
-    })
+  realtimeChannel = supabase.channel('kitchen_kds')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'order_details' }, () => fetchKitchenData())
     .subscribe()
 }
 
-onMounted(() => {
+onMounted(() => { 
   fetchKitchenData()
   setupRealtime()
+  // อัปเดตเวลาอัตโนมัติทุกๆ 30 วินาที
+  timerInterval = setInterval(() => { now.value = new Date() }, 30000)
 })
 
-onUnmounted(() => {
-  // ปิดการรับข้อมูลเมื่อเปลี่ยนหน้า
-  if (realtimeChannel) supabase.removeChannel(realtimeChannel)
+onUnmounted(() => { 
+  if (realtimeChannel) supabase.removeChannel(realtimeChannel) 
+  if (timerInterval) clearInterval(timerInterval)
 })
 </script>
+
+<style scoped>
+.no-scrollbar::-webkit-scrollbar { display: none; }
+@keyframes ring { 0%, 50%, 100% { transform: rotate(0); } 10% { transform: rotate(15deg); } 20% { transform: rotate(-10deg); } 30% { transform: rotate(5deg); } 40% { transform: rotate(-5deg); } }
+.animate-ring { animation: ring 1s ease-in-out infinite; }
+</style>
