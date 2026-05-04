@@ -12,17 +12,6 @@
       </div>
     </header>
 
-    <div class="bg-white px-5 py-2 flex gap-3 overflow-x-auto no-scrollbar shrink-0 border-t border-gray-100 shadow-sm z-10 sticky top-[72px]">
-      <button @click="currentTab = 'menu'" :class="['px-5 py-2.5 rounded-xl font-black text-sm transition-all whitespace-nowrap flex-1', currentTab === 'menu' ? 'bg-gray-900 text-white shadow-md' : 'bg-gray-100 text-gray-500 hover:bg-gray-200']">
-        <i class="fa-solid fa-book-open mr-2"></i>เมนูอาหาร
-      </button>
-      <button @click="openHistoryTab" :class="['px-5 py-2.5 rounded-xl font-black text-sm transition-all whitespace-nowrap flex-1 relative', currentTab === 'history' ? 'bg-primary text-white shadow-md shadow-orange-500/30' : 'bg-gray-100 text-gray-500 hover:bg-gray-200']">
-        <i class="fa-solid fa-receipt mr-2"></i>บิลของฉัน
-        <span v-if="historyItems.length > 0" class="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-ping"></span>
-        <span v-if="historyItems.length > 0" class="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border border-white"></span>
-      </button>
-    </div>
-
     <main class="flex-1 overflow-hidden relative bg-gray-50">
       
       <section v-show="currentTab === 'menu'" class="h-full flex flex-col animate-[fadeIn_0.3s_ease-out]">
@@ -162,13 +151,11 @@ const isSubmitting = ref(false)
 const showCartSummary = ref(false)
 let realtimeChannel = null
 
-// Computed
 const availableCategories = computed(() => [...new Set(menus.value.map(item => item.category))])
 const filteredMenus = computed(() => selectedCategory.value ? menus.value.filter(m => m.category === selectedCategory.value) : menus.value)
 const cartCount = computed(() => cart.value.reduce((sum, item) => sum + item.qty, 0))
 const cartTotal = computed(() => cart.value.reduce((sum, item) => sum + (item.price * item.qty), 0))
 
-// Load Data
 const loadInitialData = async () => {
   tableId.value = Number(route.query.table_id)
   tableName.value = route.query.table_name || 'ลูกค้าสั่งเอง'
@@ -199,10 +186,8 @@ const fetchMenus = async () => {
   isLoading.value = false
 }
 
-// 🌟 ระบบ Real-time ดักฟังสถานะจากห้องครัว และสถานะโต๊ะจาก POS 🌟
 const setupRealtime = () => {
   realtimeChannel = supabase.channel(`customer_updates_table_${tableId.value}`)
-    // 1. ดักฟังสถานะอาหารจากห้องครัว
     .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'order_details' }, payload => {
        const idx = historyItems.value.findIndex(item => item.id === payload.new.id)
        if (idx !== -1) {
@@ -212,9 +197,7 @@ const setupRealtime = () => {
          }
        }
     })
-    // 2. ดักฟังสถานะโต๊ะ (ถ้าร้านกดเช็คบิล/ล้างโต๊ะ)
     .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'tables', filter: `id=eq.${tableId.value}` }, payload => {
-       // ถ้า Token หายไป หรือ สถานะกลายเป็น ว่าง (Available) ให้เตะออก
        if (payload.new.status === 'Available' || !payload.new.session_token) {
          Swal.fire({
            icon: 'info',
@@ -223,7 +206,6 @@ const setupRealtime = () => {
            confirmButtonColor: '#10b981',
            allowOutsideClick: false
          }).then(() => {
-           // รีเฟรชหน้าเว็บแบบลบ Token ทิ้ง เพื่อให้เข้าเงื่อนไข "QR หมดอายุ"
            window.location.href = '/customer'
          })
        }
@@ -315,3 +297,11 @@ onUnmounted(() => {
   if (realtimeChannel) supabase.removeChannel(realtimeChannel) 
 })
 </script>
+
+<style scoped>
+.no-scrollbar::-webkit-scrollbar { display: none; }
+@keyframes slideUp { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+@keyframes ring { 0%, 50%, 100% { transform: rotate(0); } 10% { transform: rotate(15deg); } 20% { transform: rotate(-10deg); } 30% { transform: rotate(5deg); } 40% { transform: rotate(-5deg); } }
+.animate-ring { animation: ring 1s ease-in-out infinite; }
+.pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+</style>

@@ -3,7 +3,6 @@
     
     <div class="flex-1 flex flex-col min-w-0">
       <div class="bg-white shadow-sm px-6 py-3 flex gap-3 overflow-x-auto no-scrollbar shrink-0 z-10">
-        <button @click="selectedCategory = 'All'" :class="['px-5 py-2 rounded-full font-bold whitespace-nowrap transition-all text-sm border', selectedCategory === 'All' ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50']">ทั้งหมด</button>
         <button v-for="cat in availableCategories" :key="cat" @click="selectedCategory = cat" :class="['px-5 py-2 rounded-full font-bold whitespace-nowrap transition-all text-sm border', selectedCategory === cat ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50']">{{ cat }}</button>
       </div>
 
@@ -300,7 +299,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch, onUnmounted } from 'vue' // 🌟 นำเข้า onUnmounted
+import { ref, computed, onMounted, watch, onUnmounted } from 'vue' 
 import { useRoute, useRouter } from 'vue-router' 
 import { supabase } from '../supabase'
 import Swal from 'sweetalert2'
@@ -314,7 +313,7 @@ const tables = ref([])
 const cart = ref([])
 const activeItems = ref([])
 const currentOrderId = ref(null)
-const selectedCategory = ref('All')
+const selectedCategory = ref('') // 🌟 ค่าเริ่มต้นเป็นว่าง
 const selectedTable = ref(null)
 const storeSettings = ref({})
 
@@ -340,8 +339,8 @@ const lastOrderForReceipt = ref(null)
 let posRealtimeChannel = null
 
 // Computed Categories & Menus
-const availableCategories = computed(() => ['All', ...new Set(menus.value.map(item => item.category))])
-const filteredMenus = computed(() => selectedCategory.value === 'All' ? menus.value : menus.value.filter(m => m.category === selectedCategory.value))
+const availableCategories = computed(() => [...new Set(menus.value.map(item => item.category))])
+const filteredMenus = computed(() => selectedCategory.value ? menus.value.filter(m => m.category === selectedCategory.value) : menus.value)
 
 // การคำนวณยอดเงิน (รวม)
 const cartTotal = computed(() => cart.value.reduce((sum, item) => sum + (item.price * item.qty), 0))
@@ -394,10 +393,15 @@ const loadSettings = async () => {
   const { data } = await supabase.from('settings').select('*')
   if (data) storeSettings.value = Object.fromEntries(data.map(item => [item.setting_key, item.setting_value]))
 }
+
+// 🌟 โหลดเมนู และตั้งค่า Default ให้เลือกหมวดหมู่แรก 🌟
 const loadMenus = async () => {
   isLoadingMenus.value = true
   const { data } = await supabase.from('menus').select('*').eq('status', 'Available')
-  if (data) menus.value = data
+  if (data) {
+    menus.value = data
+    if (availableCategories.value.length > 0) selectedCategory.value = availableCategories.value[0]
+  }
   isLoadingMenus.value = false
 }
 
@@ -445,7 +449,6 @@ const selectTable = async (table) => { selectedTable.value = table; cart.value =
 const clearTable = async () => {
   if (!selectedTable.value) return;
 
-  // ถ้าโต๊ะถูกเปิด (Occupied) แต่ยังไม่ได้สั่งอาหารเลย
   if (selectedTable.value.status === 'Occupied' && activeItems.value.length === 0) {
     const res = await Swal.fire({
       title: 'ยังไม่มีรายการอาหาร',
@@ -458,14 +461,12 @@ const clearTable = async () => {
     });
 
     if (res.isConfirmed) {
-      // รีเซ็ตสถานะเป็น Available และล้าง Token (ทำให้ลูกค้ามือถือโดนเตะออก)
       await supabase.from('tables').update({ 
         status: 'Available', 
         session_token: null, 
         service_request: null 
       }).eq('id', selectedTable.value.id);
 
-      // ถ้าระบบเคยสร้างบิลเปล่าไว้ ให้ยกเลิกบิลนั้นไปเลย
       if (currentOrderId.value) {
         await supabase.from('orders').update({ status: 'Voided' }).eq('id', currentOrderId.value);
       }
@@ -502,7 +503,6 @@ const sendOrderToKitchen = async () => {
       orderId = newOrder.id
     }
     
-    // บังคับอัปเดตโต๊ะเป็น Occupied ทุกครั้ง!
     await supabase.from('tables').update({ status: 'Occupied' }).eq('id', selectedTable.value.id)
     selectedTable.value.status = 'Occupied'
 
@@ -519,7 +519,7 @@ const sendOrderToKitchen = async () => {
   }
 }
 
-// 💵 ชำระเงิน & สมาชิก & ตัดสต๊อก
+// 💵 ชำระเงิน
 const openPayment = () => {
   paymentMethod.value = 'Cash'
   discountValue.value = ''
@@ -586,7 +586,7 @@ const submitPayment = async () => {
 
     if (orderError) throw orderError
     
-    // 2. เคลียร์โต๊ะให้ว่าง และทำลาย Token (เพื่อให้มือถือเด้งออก) 🌟
+    // 2. เคลียร์โต๊ะให้ว่าง และทำลาย Token (เพื่อให้มือถือเด้งออก)
     const { error: tableError } = await supabase.from('tables').update({ 
       status: 'Available', 
       service_request: null, 
@@ -608,7 +608,6 @@ const submitPayment = async () => {
       if (memberError) throw memberError
     }
 
-    // 📦 4. ระบบตัดสต๊อกอัตโนมัติ (Auto Inventory Deduction)
     const { data: orderItems } = await supabase
       .from('order_details')
       .select('quantity, menus(inventory_id)')
@@ -740,14 +739,11 @@ const printQR = (title, imgUrl) => {
   printWindow.document.close()
 }
 
-// 🌟 ฟังก์ชันสร้าง QR Code โต๊ะ 🌟
 const generateQR = async () => {
   if (!selectedTable.value) return
   
-  // 🌟 สร้าง Token ใหม่
   const newToken = Math.random().toString(36).substring(2, 10);
   
-  // 🌟 [ปรับปรุง] บังคับเปลี่ยนสถานะเป็น Occupied และบันทึก Token
   await supabase.from('tables').update({ 
     session_token: newToken,
     status: 'Occupied' 
@@ -788,9 +784,7 @@ const generateQR = async () => {
   })
 }
 
-// 🌟 ตัวแปร Real-time ของ POS
-let posRealtimeChannel = null
-
+// 🌟 ระบบ Real-time ของฝั่ง POS 🌟
 const setupPosRealtime = () => {
   posRealtimeChannel = supabase.channel('pos_order_updates')
     .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'order_details' }, payload => {
@@ -801,11 +795,30 @@ const setupPosRealtime = () => {
          }
        }
     })
-    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'order_details' }, payload => {
+    // 🌟 ดักการสร้างออเดอร์ใหม่จากหน้า Mobile (แก้ปัญหาออเดอร์แรกไม่ขึ้น) 🌟
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'orders' }, payload => {
+      if (selectedTable.value && payload.new.table_id === selectedTable.value.id) {
+        currentOrderId.value = payload.new.id;
+        fetchTableOrder(selectedTable.value.id);
+        Swal.fire({ icon: 'info', title: 'โต๊ะนี้เปิดบิลสั่งอาหารแล้ว!', toast: true, position: 'top', timer: 2000, showConfirmButton: false })
+      }
+    })
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'order_details' }, async payload => {
        if (currentOrderId.value === payload.new.order_id) {
          fetchTableOrder(selectedTable.value.id)
          Swal.fire({ icon: 'info', title: 'มีออเดอร์ใหม่จากลูกค้าโต๊ะนี้!', toast: true, position: 'top', timer: 2000, showConfirmButton: false })
+       } else if (selectedTable.value && !currentOrderId.value) {
+         // กรณีออเดอร์แรก (ดักเผื่อไว้)
+         const { data: orderData } = await supabase.from('orders').select('table_id').eq('id', payload.new.order_id).single()
+         if (orderData && orderData.table_id === selectedTable.value.id) {
+           currentOrderId.value = payload.new.order_id
+           fetchTableOrder(selectedTable.value.id)
+           Swal.fire({ icon: 'info', title: 'มีออเดอร์ใหม่จากลูกค้าโต๊ะนี้!', toast: true, position: 'top', timer: 2000, showConfirmButton: false })
+         }
        }
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'tables' }, () => {
+       loadTables() // เพื่อให้อัปเดตสถานะโต๊ะที่แผงซ้ายทันที
     })
     .subscribe()
 }
