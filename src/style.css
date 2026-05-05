@@ -1,13 +1,19 @@
-@import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700;800&display=swap');
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-@theme {
-  --color-primary: #f97316;
-  --color-dark: #1f2937;
-  --font-sans: "Kanit", sans-serif;
+/* บังคับใช้ Font Prompt ทั้งระบบ และป้องกัน Double Tap Zoom */
+body {
+  font-family: 'Prompt', sans-serif !important;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
-body {
-    font-family: 'Kanit', sans-serif;
-    background-color: #f3f4f6;
+/* ซ่อน Scrollbar ให้ดูคลีน แต่ยัง Scroll ได้ */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
