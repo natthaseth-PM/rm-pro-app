@@ -1,15 +1,16 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
-/* บังคับใช้ Font Prompt ทั้งระบบ และป้องกัน Double Tap Zoom */
+@theme {
+  --font-sans: 'Prompt', sans-serif;
+}
+
 body {
   font-family: 'Prompt', sans-serif !important;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
 }
 
-/* ซ่อน Scrollbar ให้ดูคลีน แต่ยัง Scroll ได้ */
+/* ซ่อน Scrollbar ให้ดูคลีน แต่ยังเลื่อนได้ */
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }

@@ -1,35 +1,100 @@
 <template>
-  <div class="h-screen w-full bg-[#0f172a] text-gray-100 flex flex-col font-sans overflow-hidden">
-    <header class="bg-[#1e293b] px-6 py-4 flex flex-col md:flex-row justify-between items-start md:items-center shrink-0 border-b border-gray-800 shadow-md gap-4">
-      <div class="flex items-center gap-4"><div class="w-14 h-14 bg-red-500 rounded-2xl flex items-center justify-center text-3xl shadow-lg shadow-red-500/20 text-white"><i class="fa-solid fa-fire-burner"></i></div><div><h1 class="text-2xl md:text-3xl font-black tracking-wide text-white">KDS (Kitchen Display)</h1><p class="text-xs text-gray-400 font-bold mt-1"><i class="fa-solid fa-circle text-green-500 text-[8px] animate-pulse mr-1"></i> เชื่อมต่อออเดอร์เรียลไทม์ พร้อมเสียงแจ้งเตือน</p></div></div>
-      <div class="flex bg-gray-900 p-1.5 rounded-2xl w-full md:w-auto">
-        <button @click="station = 'Kitchen'" :class="station === 'Kitchen' ? 'bg-orange-600 text-white shadow-md' : 'text-gray-400 hover:text-white'" class="flex-1 md:flex-none px-6 py-3 rounded-xl font-black md:text-lg transition-all flex items-center justify-center gap-2"><i class="fa-solid fa-fire"></i> โซนอาหาร</button>
-        <button @click="station = 'Bar'" :class="station === 'Bar' ? 'bg-blue-600 text-white shadow-md' : 'text-gray-400 hover:text-white'" class="flex-1 md:flex-none px-6 py-3 rounded-xl font-black md:text-lg transition-all flex items-center justify-center gap-2"><i class="fa-solid fa-martini-glass-citrus"></i> บาร์น้ำ</button>
+  <div class="h-full flex flex-col bg-gray-100 overflow-hidden font-sans text-gray-800">
+    
+    <header class="bg-white px-8 py-5 flex justify-between items-center shrink-0 border-b border-gray-200 shadow-sm z-10">
+      <div>
+        <h1 class="text-2xl font-black flex items-center gap-3 text-gray-800">
+          <span class="w-12 h-12 bg-orange-100 text-orange-600 rounded-xl flex items-center justify-center text-xl shadow-inner">
+            <i class="fa-solid fa-fire-burner"></i>
+          </span>
+          ระบบห้องครัว (Kitchen Display)
+        </h1>
+        <p class="text-gray-500 font-bold text-sm ml-[3.5rem] mt-1">จัดการออเดอร์และสถานะอาหารแบบ Real-time</p>
+      </div>
+      <div class="flex gap-3">
+        <div class="bg-red-50 border border-red-100 px-5 py-2 rounded-xl text-center shadow-sm">
+          <span class="text-red-500 font-bold text-[10px] uppercase block leading-none mb-1 tracking-widest">รอดำเนินการ</span>
+          <span class="text-red-600 font-black text-xl leading-none">{{ pendingCount }}</span>
+        </div>
+        <div class="bg-blue-50 border border-blue-100 px-5 py-2 rounded-xl text-center shadow-sm">
+          <span class="text-blue-500 font-bold text-[10px] uppercase block leading-none mb-1 tracking-widest">กำลังทำ</span>
+          <span class="text-blue-600 font-black text-xl leading-none">{{ preparingCount }}</span>
+        </div>
       </div>
     </header>
 
-    <main class="flex-1 overflow-x-auto overflow-y-hidden p-6 flex gap-6 no-scrollbar bg-[#0f172a]">
-      <div class="w-[380px] shrink-0 flex flex-col bg-[#1e293b] rounded-[2rem] border border-gray-800 max-h-full shadow-2xl relative overflow-hidden">
-        <div class="bg-gradient-to-r from-red-500/20 to-transparent border-b border-red-500/20 p-5 flex justify-between items-center"><h2 class="text-red-400 font-black text-xl flex items-center"><i class="fa-solid fa-bell text-red-500 mr-3 animate-ring text-2xl"></i> รอทำ (New)</h2><span class="bg-red-500 text-white px-3 py-1 rounded-full text-sm font-black shadow-lg shadow-red-500/30">{{ pendingItems.length }}</span></div>
-        <div class="flex-1 overflow-y-auto p-4 space-y-4 no-scrollbar">
-          <div v-if="pendingItems.length === 0" class="text-center text-gray-600 font-bold py-10 mt-10"><i class="fa-solid fa-mug-hot text-6xl block mb-4 opacity-50"></i>ไม่มีออเดอร์ใหม่</div>
-          <div v-for="item in pendingItems" :key="item.id" class="bg-[#2a374a] rounded-2xl border border-gray-700 p-5 relative overflow-hidden shadow-lg animate-[fadeIn_0.3s_ease-out]">
-            <div class="absolute left-0 top-0 bottom-0 w-2 bg-red-500"></div>
-            <div class="flex justify-between items-start mb-4 pl-2"><div><h3 class="font-black text-xl text-white leading-tight mb-1">{{ item.menu_name }}</h3><span class="inline-flex items-center text-xs font-black text-orange-400 bg-orange-500/10 px-2.5 py-1 rounded-md border border-orange-500/20 uppercase tracking-widest mb-1"><i class="fa-solid fa-map-pin mr-1"></i> โต๊ะ: {{ getTableName(item.order_id) }}</span><div class="flex items-center gap-1 mt-1"><span :class="getWaitTimeClass(item.created_at)" class="px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider shadow-sm"><i class="fa-regular fa-clock mr-1"></i> รอมา {{ getWaitTime(item.created_at) }}</span></div></div><div class="bg-red-500/20 text-red-400 font-black text-2xl w-14 h-14 rounded-2xl flex items-center justify-center border border-red-500/30 shadow-inner shrink-0">x{{ item.quantity }}</div></div>
-            <div class="flex gap-2 pl-2"><button @click="updateStatus(item.id, 'Cooking')" class="flex-1 bg-blue-600 hover:bg-blue-500 text-white py-4 rounded-xl font-black transition-all active:scale-95 text-lg shadow-lg shadow-blue-500/30"><i class="fa-solid fa-fire-burner mr-2"></i> เริ่มทำ</button><button @click="cancelItem(item.id)" class="w-14 bg-gray-700 hover:bg-red-600 text-gray-400 hover:text-white rounded-xl font-black transition-all text-xl"><i class="fa-solid fa-xmark"></i></button></div>
-          </div>
-        </div>
+    <main class="flex-1 overflow-x-auto overflow-y-hidden p-6 md:p-8">
+      
+      <div v-if="isLoading" class="h-full flex flex-col items-center justify-center text-orange-500">
+        <i class="fa-solid fa-circle-notch fa-spin text-5xl mb-4"></i>
+        <p class="font-black text-gray-500 tracking-widest uppercase">กำลังโหลดออเดอร์...</p>
       </div>
 
-      <div class="w-[380px] shrink-0 flex flex-col bg-[#1e293b] rounded-[2rem] border border-gray-800 max-h-full shadow-2xl relative overflow-hidden">
-        <div class="bg-gradient-to-r from-blue-500/20 to-transparent border-b border-blue-500/20 p-5 flex justify-between items-center"><h2 class="text-blue-400 font-black text-xl flex items-center"><i class="fa-solid fa-fire text-blue-500 mr-3 text-2xl"></i> กำลังปรุง (Cooking)</h2><span class="bg-blue-500 text-white px-3 py-1 rounded-full text-sm font-black shadow-lg shadow-blue-500/30">{{ cookingItems.length }}</span></div>
-        <div class="flex-1 overflow-y-auto p-4 space-y-4 no-scrollbar">
-          <div v-if="cookingItems.length === 0" class="text-center text-gray-600 font-bold py-10 mt-10"><i class="fa-solid fa-fire-burner text-6xl block mb-4 opacity-50"></i>ยังไม่มีรายการที่กำลังทำ</div>
-          <div v-for="item in cookingItems" :key="item.id" class="bg-[#2a374a] rounded-2xl border border-blue-500/30 p-5 relative overflow-hidden shadow-lg shadow-blue-900/20 animate-[fadeIn_0.3s_ease-out]">
-            <div class="absolute left-0 top-0 bottom-0 w-2 bg-blue-500"></div>
-            <div class="flex justify-between items-start mb-4 pl-2"><div><h3 class="font-black text-xl text-white leading-tight mb-1">{{ item.menu_name }}</h3><span class="inline-flex items-center text-xs font-black text-orange-400 bg-orange-500/10 px-2.5 py-1 rounded-md border border-orange-500/20 uppercase tracking-widest mb-1"><i class="fa-solid fa-map-pin mr-1"></i> โต๊ะ: {{ getTableName(item.order_id) }}</span><div class="flex items-center gap-1 mt-1"><span :class="getWaitTimeClass(item.created_at)" class="px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider shadow-sm"><i class="fa-solid fa-stopwatch mr-1"></i> ทำมาแล้ว {{ getWaitTime(item.created_at) }}</span></div></div><div class="bg-blue-500/20 text-blue-400 font-black text-2xl w-14 h-14 rounded-2xl flex items-center justify-center border border-blue-500/30 shadow-inner shrink-0">x{{ item.quantity }}</div></div>
-            <div class="pl-2"><button @click="updateStatus(item.id, 'Served')" class="w-full bg-emerald-500 hover:bg-emerald-400 text-white py-5 rounded-xl font-black transition-all active:scale-95 text-xl shadow-lg shadow-emerald-500/30"><i class="fa-solid fa-bell-concierge mr-2"></i> เสิร์ฟแล้ว</button></div>
+      <div v-else-if="Object.keys(groupedOrders).length === 0" class="h-full flex flex-col items-center justify-center text-gray-400">
+        <div class="w-32 h-32 bg-white rounded-full flex items-center justify-center shadow-sm mb-4">
+          <i class="fa-solid fa-check-double text-5xl text-emerald-400"></i>
+        </div>
+        <h2 class="text-2xl font-black text-gray-600">ไม่มีออเดอร์ค้าง</h2>
+        <p class="font-bold text-sm mt-2">ออเดอร์ทั้งหมดถูกจัดการเรียบร้อยแล้ว</p>
+      </div>
+
+      <div v-else class="flex gap-6 h-full items-start pb-4">
+        
+        <div v-for="(order, orderId) in groupedOrders" :key="orderId" class="w-[350px] min-w-[350px] bg-white rounded-[2rem] shadow-md border border-gray-200 flex flex-col overflow-hidden animate-[fadeIn_0.3s_ease-out] shrink-0 max-h-full">
+          
+          <div class="p-5 border-b border-gray-100 relative overflow-hidden" :class="order.hasPending ? 'bg-red-50' : 'bg-blue-50'">
+            <div class="relative z-10 flex justify-between items-start">
+              <div>
+                <span class="px-3 py-1 bg-white rounded-full text-[10px] font-black tracking-widest uppercase mb-2 inline-block shadow-sm" :class="order.hasPending ? 'text-red-600' : 'text-blue-600'">
+                  INV-{{ orderId.substring(0, 4).toUpperCase() }}
+                </span>
+                <h3 class="text-2xl font-black text-gray-900 leading-tight">โต๊ะ: {{ order.tableName }}</h3>
+              </div>
+              <div class="text-right">
+                <p class="text-[10px] font-bold text-gray-500 uppercase tracking-widest">เวลาสั่ง</p>
+                <p class="font-black text-gray-800">{{ formatTime(order.createdAt) }}</p>
+              </div>
+            </div>
+            <i class="fa-solid fa-receipt absolute -right-4 -bottom-4 text-6xl opacity-5"></i>
           </div>
+
+          <div class="flex-1 overflow-y-auto p-2">
+            <div v-for="item in order.items" :key="item.id" class="p-3 border-b border-gray-50 last:border-0 hover:bg-gray-50 transition-colors rounded-xl">
+              
+              <div class="flex justify-between items-start mb-3">
+                <div class="flex-1 pr-3">
+                  <h4 class="font-black text-gray-800 text-lg leading-tight">{{ item.menu_name }}</h4>
+                  <p v-if="item.note" class="text-xs font-bold text-red-500 mt-1"><i class="fa-solid fa-comment-dots"></i> {{ item.note }}</p>
+                </div>
+                <div class="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center font-black text-xl text-gray-800 shadow-inner shrink-0">
+                  x{{ item.quantity }}
+                </div>
+              </div>
+
+              <div class="flex gap-2">
+                <button v-if="item.kitchen_status === 'Pending'" @click="updateStatus(item.id, 'Preparing')" class="flex-1 py-2.5 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-xl font-bold text-xs transition-colors shadow-sm">
+                  <i class="fa-solid fa-fire-burner mr-1"></i> เริ่มทำ
+                </button>
+                <button v-if="item.kitchen_status === 'Preparing'" @click="updateStatus(item.id, 'Done')" class="flex-1 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-black text-xs transition-all shadow-md active:scale-95">
+                  <i class="fa-solid fa-check mr-1"></i> เสร็จแล้ว
+                </button>
+                <button v-if="item.kitchen_status === 'Pending'" @click="updateStatus(item.id, 'Cancelled')" class="px-4 py-2.5 bg-gray-100 hover:bg-red-100 text-gray-500 hover:text-red-600 rounded-xl font-bold text-xs transition-colors">
+                  ยกเลิก
+                </button>
+              </div>
+
+            </div>
+          </div>
+          
+          <div class="p-4 bg-gray-50 border-t border-gray-100 shrink-0">
+            <button v-if="order.hasPending" @click="updateAllStatus(order.items, 'Preparing')" class="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-black shadow-lg shadow-blue-500/30 transition-all active:scale-95 text-sm mb-2">
+              ทำทุกรายการในบิลนี้
+            </button>
+            <button v-else-if="order.hasPreparing" @click="updateAllStatus(order.items, 'Done')" class="w-full py-3.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-black shadow-lg shadow-emerald-500/30 transition-all active:scale-95 text-sm">
+              <i class="fa-solid fa-check-double mr-1"></i> เสร็จทุกรายการ
+            </button>
+          </div>
+
         </div>
       </div>
     </main>
@@ -41,127 +106,122 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { supabase } from '../supabase'
 import Swal from 'sweetalert2'
 
-const myStoreId = ref(null) // 🌟 เก็บ ID ร้านค้า
-const station = ref('Kitchen') 
-const rawDetails = ref([])
-const tablesMap = ref({})
+const myStoreId = ref(null)
+const orderItems = ref([])
+const isLoading = ref(true)
 let realtimeChannel = null
-const now = ref(new Date())
-let timerInterval = null
 
-const alertSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
-
-const fetchKitchenData = async () => {
-  if(!myStoreId.value) return;
-
-  // 🌟 ดึงข้อมูลเฉพาะร้านเรา
-  const { data: tData } = await supabase.from('tables').select('id, table_name').eq('store_id', myStoreId.value)
-  if (tData) {
-    tablesMap.value = tData.reduce((acc, curr) => {
-      acc[curr.id] = curr.table_name
-      return acc
-    }, {})
-  }
-
-  // 🌟 ดึงออเดอร์เฉพาะร้านเรา
-  const { data: detailsData } = await supabase
-    .from('order_details')
-    .select(`*, orders!inner(table_id), menus!inner(category)`)
-    .eq('store_id', myStoreId.value)
-    .in('kitchen_status', ['Pending', 'Cooking'])
-    .order('created_at', { ascending: true })
-
-  rawDetails.value = detailsData || []
-}
-
-const stationItems = computed(() => {
-  if (station.value === 'Bar') return rawDetails.value.filter(item => item.menus?.category === 'เครื่องดื่ม')
-  else return rawDetails.value.filter(item => item.menus?.category !== 'เครื่องดื่ม')
-})
-const pendingItems = computed(() => stationItems.value.filter(item => item.kitchen_status === 'Pending'))
-const cookingItems = computed(() => stationItems.value.filter(item => item.kitchen_status === 'Cooking'))
-
-const getTableName = (orderId) => {
-  const item = rawDetails.value.find(i => i.order_id === orderId)
-  return item && item.orders ? (tablesMap.value[item.orders.table_id] || 'ไม่ระบุ') : 'ไม่ระบุ'
-}
-
-const getWaitTime = (createdAt) => {
-  const diffMins = Math.floor((now.value - new Date(createdAt)) / 60000)
-  if (diffMins < 1) return 'เพิ่งสั่ง'
-  if (diffMins >= 60) return `${Math.floor(diffMins/60)} ชม. ${diffMins%60} น.`
-  return `${diffMins} นาที`
-}
-
-const getWaitTimeClass = (createdAt) => {
-  const diffMins = Math.floor((now.value - new Date(createdAt)) / 60000)
-  if (diffMins >= 15) return 'bg-red-500 text-white animate-pulse' 
-  if (diffMins >= 10) return 'bg-orange-500 text-white' 
-  return 'bg-green-600/30 text-green-400 border border-green-600/50' 
-}
-
-const updateStatus = async (id, newStatus) => {
-  const { error } = await supabase.from('order_details').update({ kitchen_status: newStatus }).eq('id', id)
-  if (!error) {
-    const idx = rawDetails.value.findIndex(o => o.id === id)
-    if (idx > -1) {
-       if (newStatus === 'Served' || newStatus === 'Cancelled') rawDetails.value.splice(idx, 1)
-       else rawDetails.value[idx].kitchen_status = newStatus
-    }
-  }
-}
-
-const cancelItem = async (id) => {
-  const result = await Swal.fire({ title: 'ยกเลิกออเดอร์นี้?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444' })
-  if (result.isConfirmed) updateStatus(id, 'Cancelled')
-}
-
-const playAudioAlert = () => {
+const loadKitchenOrders = async () => {
+  if (!myStoreId.value) return
+  isLoading.value = true
+  
   try {
-    alertSound.currentTime = 0;
-    const playPromise = alertSound.play();
-    if (playPromise !== undefined) {
-      playPromise.catch(error => { console.log('Autoplay blocked:', error); });
-    }
-  } catch (err) {}
+    const { data, error } = await supabase
+      .from('order_details')
+      .select('*, orders!inner(id, table_id, created_at, tables(table_name))')
+      .eq('store_id', myStoreId.value)
+      .in('kitchen_status', ['Pending', 'Preparing'])
+      .order('created_at', { ascending: true })
+
+    if (error) throw error
+    if (data) orderItems.value = data
+  } catch (err) {
+    console.error("Load Kitchen Error:", err)
+  } finally {
+    isLoading.value = false
+  }
 }
 
+// 🌟 จัดกลุ่มข้อมูลแยกตามบิล (Order) เพื่อแสดงเป็นการ์ด
+const groupedOrders = computed(() => {
+  const groups = {}
+  orderItems.value.forEach(item => {
+    const orderId = item.orders?.id
+    if (!orderId) return
+
+    if (!groups[orderId]) {
+      groups[orderId] = {
+        tableName: item.orders?.tables?.table_name || 'ไม่ระบุโต๊ะ',
+        createdAt: item.orders?.created_at,
+        items: [],
+        hasPending: false,
+        hasPreparing: false
+      }
+    }
+    groups[orderId].items.push(item)
+    if (item.kitchen_status === 'Pending') groups[orderId].hasPending = true
+    if (item.kitchen_status === 'Preparing') groups[orderId].hasPreparing = true
+  })
+  return groups
+})
+
+const pendingCount = computed(() => orderItems.value.filter(i => i.kitchen_status === 'Pending').length)
+const preparingCount = computed(() => orderItems.value.filter(i => i.kitchen_status === 'Preparing').length)
+
+const formatTime = (timeStr) => {
+  if (!timeStr) return ''
+  return new Date(timeStr).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })
+}
+
+// อัปเดตสถานะทีละรายการ
+const updateStatus = async (itemId, status) => {
+  try {
+    // อัปเดต UI ทันทีเพื่อความลื่นไหล
+    const index = orderItems.value.findIndex(i => i.id === itemId)
+    if (index !== -1) orderItems.value[index].kitchen_status = status
+
+    await supabase.from('order_details').update({ kitchen_status: status }).eq('id', itemId)
+    
+    if (status === 'Done' || status === 'Cancelled') {
+      setTimeout(() => { loadKitchenOrders() }, 500) // รีเฟรชข้อมูลเบื้องหลัง
+    }
+  } catch (err) {
+    console.error("Update Error:", err)
+  }
+}
+
+// อัปเดตสถานะทั้งบิล (เหมา)
+const updateAllStatus = async (items, targetStatus) => {
+  const itemIds = items.filter(i => i.kitchen_status !== 'Done' && i.kitchen_status !== 'Cancelled').map(i => i.id)
+  if (itemIds.length === 0) return
+
+  try {
+    // อัปเดต UI ทันที
+    items.forEach(i => { i.kitchen_status = targetStatus })
+    
+    await supabase.from('order_details').update({ kitchen_status: targetStatus }).in('id', itemIds)
+    
+    if (targetStatus === 'Done') {
+      setTimeout(() => { loadKitchenOrders() }, 500)
+    }
+  } catch (err) {
+    console.error("Update All Error:", err)
+  }
+}
+
+// 📡 ระบบ Real-time
 const setupRealtime = () => {
-  // 🌟 แยกร้านใน Real-time Channel ด้วย!
-  realtimeChannel = supabase.channel(`kitchen_kds_${myStoreId.value}`)
-    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'order_details', filter: `store_id=eq.${myStoreId.value}` }, (payload) => {
-       playAudioAlert() 
-       fetchKitchenData()
-       Swal.fire({ title: '🔔 ออเดอร์ใหม่เข้า!', text: payload.new.menu_name, toast: true, position: 'top-end', timer: 4000, showConfirmButton: false, background: '#ef4444', color: '#fff' })
+  realtimeChannel = supabase.channel(`kitchen_updates_${myStoreId.value}`)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'order_details', filter: `store_id=eq.${myStoreId.value}` }, () => {
+      loadKitchenOrders()
     })
-    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'order_details', filter: `store_id=eq.${myStoreId.value}` }, () => fetchKitchenData())
-    .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'order_details', filter: `store_id=eq.${myStoreId.value}` }, () => fetchKitchenData())
     .subscribe()
 }
 
-onMounted(() => { 
+onMounted(() => {
   const savedUser = JSON.parse(localStorage.getItem('rmpro_user'))
-  if(savedUser && savedUser.store_id) {
+  if (savedUser && savedUser.store_id) {
     myStoreId.value = savedUser.store_id
-    fetchKitchenData()
+    loadKitchenOrders()
     setupRealtime()
-    timerInterval = setInterval(() => { now.value = new Date() }, 30000)
-    
-    Swal.fire({ title: 'KDS พร้อมใช้งาน', text: 'คลิกที่ปุ่ม "ตกลง" เพื่อเปิดระบบเสียงแจ้งเตือนออเดอร์', icon: 'success', confirmButtonText: 'ตกลง', confirmButtonColor: '#10b981', allowOutsideClick: false }).then(() => {
-      alertSound.volume = 0;
-      alertSound.play().then(() => { alertSound.pause(); alertSound.currentTime = 0; alertSound.volume = 1; }).catch(e => console.log('Silent play blocked', e));
-    });
   }
 })
 
-onUnmounted(() => { 
-  if (realtimeChannel) supabase.removeChannel(realtimeChannel) 
-  if (timerInterval) clearInterval(timerInterval)
+onUnmounted(() => {
+  if (realtimeChannel) supabase.removeChannel(realtimeChannel)
 })
 </script>
 
 <style scoped>
 .no-scrollbar::-webkit-scrollbar { display: none; }
-@keyframes ring { 0%, 50%, 100% { transform: rotate(0); } 10% { transform: rotate(15deg); } 20% { transform: rotate(-10deg); } 30% { transform: rotate(5deg); } 40% { transform: rotate(-5deg); } }
-.animate-ring { animation: ring 1s ease-in-out infinite; }
 </style>
