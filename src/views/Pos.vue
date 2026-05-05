@@ -313,7 +313,7 @@ const tables = ref([])
 const cart = ref([])
 const activeItems = ref([])
 const currentOrderId = ref(null)
-const selectedCategory = ref('') // 🌟 ค่าเริ่มต้นเป็นว่าง
+const selectedCategory = ref('')
 const selectedTable = ref(null)
 const storeSettings = ref({})
 
@@ -335,8 +335,8 @@ const usePointsAmount = ref(0)
 const successChangeAmount = ref(0)
 const lastOrderForReceipt = ref(null) 
 
-// 🌟 ตัวแปรเก็บ Real-time channel ของ POS
-let posRealtimeChannel = null
+// 🌟 ตัวแปรเก็บ Real-time channel ของ POS (ป้องกันการประกาศซ้ำ)
+const posRealtimeChannel = ref(null)
 
 // Computed Categories & Menus
 const availableCategories = computed(() => [...new Set(menus.value.map(item => item.category))])
@@ -373,7 +373,6 @@ const promptPayImage = computed(() => {
   return `https://promptpay.io/${ppId}/${netTotal.value}.png`
 })
 
-// Computed สำหรับปรับขนาดโต๊ะอัตโนมัติ
 const tableCardSize = computed(() => {
   const count = tables.value.length
   if (count <= 6) return 280
@@ -394,7 +393,6 @@ const loadSettings = async () => {
   if (data) storeSettings.value = Object.fromEntries(data.map(item => [item.setting_key, item.setting_value]))
 }
 
-// 🌟 โหลดเมนู และตั้งค่า Default ให้เลือกหมวดหมู่แรก 🌟
 const loadMenus = async () => {
   isLoadingMenus.value = true
   const { data } = await supabase.from('menus').select('*').eq('status', 'Available')
@@ -405,7 +403,6 @@ const loadMenus = async () => {
   isLoadingMenus.value = false
 }
 
-// 🌟 Double Check in POS: ดึง tables พร้อมเช็ค orders ที่เปิดอยู่
 const loadTables = async () => {
   isLoadingTables.value = true
   const { data: tData } = await supabase.from('tables').select('*').order('table_name')
@@ -431,21 +428,21 @@ const fetchTableOrder = async (tableId) => {
   }
 }
 
-// Logic ทั่วไป
 const addToCart = (item) => {
   if(!selectedTable.value) return Swal.fire({ icon: 'warning', title: 'เลือกโต๊ะก่อนสั่งนะครับ', toast: true, position: 'top', timer: 2000, showConfirmButton: false })
   const existing = cart.value.find(c => c.id === item.id)
   if (existing) existing.qty++
   else cart.value.push({ ...item, qty: 1 })
 }
+
 const updateQty = (index, val) => {
   cart.value[index].qty += val
   if (cart.value[index].qty <= 0) cart.value.splice(index, 1)
 }
+
 const openTableModal = () => { loadTables(); showTableModal.value = true }
 const selectTable = async (table) => { selectedTable.value = table; cart.value = []; await fetchTableOrder(table.id); showTableModal.value = false }
 
-// 🌟 ฟังก์ชัน พับหน้าต่าง/เคลียร์โต๊ะ 🌟
 const clearTable = async () => {
   if (!selectedTable.value) return;
 
@@ -461,16 +458,8 @@ const clearTable = async () => {
     });
 
     if (res.isConfirmed) {
-      await supabase.from('tables').update({ 
-        status: 'Available', 
-        session_token: null, 
-        service_request: null 
-      }).eq('id', selectedTable.value.id);
-
-      if (currentOrderId.value) {
-        await supabase.from('orders').update({ status: 'Voided' }).eq('id', currentOrderId.value);
-      }
-      
+      await supabase.from('tables').update({ status: 'Available', session_token: null, service_request: null }).eq('id', selectedTable.value.id);
+      if (currentOrderId.value) await supabase.from('orders').update({ status: 'Voided' }).eq('id', currentOrderId.value);
       Swal.fire({ icon: 'success', title: 'คืนโต๊ะว่างเรียบร้อย', toast: true, position: 'top', timer: 1500, showConfirmButton: false });
     }
   }
@@ -490,7 +479,22 @@ const voidItem = async (item) => {
   }
 }
 
-// 🌟 ส่งเข้าครัว 
+// 🖨️ 🌟 ฟังก์ชันพิมพ์ผ่าน Iframe (ทำงานเนียน ไม่เปิดแท็บใหม่) 🌟
+const printToIframe = (htmlContent) => {
+  const iframe = document.createElement('iframe');
+  iframe.style.display = 'none';
+  document.body.appendChild(iframe);
+  iframe.contentDocument.write(htmlContent);
+  iframe.contentDocument.close();
+  
+  iframe.onload = () => {
+    iframe.contentWindow.focus();
+    iframe.contentWindow.print();
+    setTimeout(() => { document.body.removeChild(iframe); }, 1000); 
+  };
+}
+
+// 🌟 ส่งเข้าครัว และถามเรื่องพิมพ์ใบสั่งอาหาร (Kitchen Ticket) 🌟
 const sendOrderToKitchen = async () => {
   if (!selectedTable.value || cart.value.length === 0) return
   isSubmitting.value = true
@@ -509,9 +513,26 @@ const sendOrderToKitchen = async () => {
     const details = cart.value.map(item => ({ order_id: orderId, menu_id: item.id, menu_name: item.menu_name, price: item.price, quantity: item.qty, total_price: item.price * item.qty, kitchen_status: 'Pending' }))
     await supabase.from('order_details').insert(details)
     
+    const itemsToPrint = [...cart.value]; 
+    const tableNameToPrint = selectedTable.value.table_name;
+
     await fetchTableOrder(selectedTable.value.id)
     cart.value = []
-    Swal.fire({ icon: 'success', title: 'ส่งเข้าครัวแล้ว!', toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 })
+    
+    Swal.fire({ 
+      icon: 'success', 
+      title: 'ส่งเข้าครัวแล้ว!', 
+      text: 'ต้องการพิมพ์ใบสั่งอาหารสำหรับห้องครัวหรือไม่?',
+      showCancelButton: true,
+      confirmButtonText: '<i class="fa-solid fa-print"></i> พิมพ์ใบสั่งอาหาร',
+      cancelButtonText: 'ไม่พิมพ์',
+      confirmButtonColor: '#f97316'
+    }).then((res) => {
+      if (res.isConfirmed) {
+        printKitchenTicket(itemsToPrint, tableNameToPrint);
+      }
+    });
+
   } catch (error) {
     Swal.fire('ผิดพลาด', 'ไม่สามารถส่งออเดอร์ได้', 'error')
   } finally {
@@ -519,7 +540,38 @@ const sendOrderToKitchen = async () => {
   }
 }
 
-// 💵 ชำระเงิน
+// 🖨️ 🌟 ฟังก์ชันพิมพ์ใบสั่งอาหารเข้าครัว 🌟
+const printKitchenTicket = (items, tableName) => {
+  let itemsHtml = items.map(item => `
+    <div style="display: flex; justify-content: space-between; font-size: 16px; margin-bottom: 8px; font-weight: bold; border-bottom: 1px solid #eee; padding-bottom: 4px;">
+      <div>[ ] ${item.menu_name}</div>
+      <div style="font-size: 18px;">x${item.qty}</div>
+    </div>
+  `).join('');
+
+  const html = `
+    <html><head><title>Kitchen Ticket</title>
+    <style>
+      @page { margin: 0; size: 80mm auto; }
+      body { font-family: 'Kanit', sans-serif; width: 80mm; margin: 0 auto; padding: 10px; color: #000; box-sizing: border-box; }
+      .text-center { text-align: center; }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;700;900&display=swap" rel="stylesheet">
+    </head><body>
+      <div class="text-center" style="margin-bottom: 10px;">
+        <h2 style="margin:0; font-size: 24px;">ใบสั่งอาหาร (Kitchen)</h2>
+        <h1 style="margin:10px 0; font-size: 36px; border: 3px solid #000; padding: 5px; border-radius: 10px;">โต๊ะ: ${tableName}</h1>
+        <p style="margin:0; font-size: 14px; font-weight: bold;">เวลา: ${new Date().toLocaleString('th-TH')}</p>
+      </div>
+      <div style="margin-bottom: 20px; margin-top: 15px;">
+        ${itemsHtml}
+      </div>
+      <div class="text-center" style="font-size: 12px; font-weight: bold; border-top: 2px dashed #000; padding-top: 10px;">--- สิ้นสุดรายการ ---</div>
+    </body></html>
+  `;
+  printToIframe(html);
+}
+
 const openPayment = () => {
   paymentMethod.value = 'Cash'
   discountValue.value = ''
@@ -546,26 +598,17 @@ const searchMember = async () => {
 const promptRegisterMember = async () => {
   const { value: formValues } = await Swal.fire({
     title: 'สมัครสมาชิกใหม่',
-    html: `
-      <input id="swal-phone" class="swal2-input" placeholder="เบอร์โทรศัพท์ (08xxxxxxxx)" type="tel" value="${memberPhone.value}">
-      <input id="swal-name" class="swal2-input" placeholder="ชื่อ-นามสกุล หรือ ชื่อเล่น" type="text">
-    `,
+    html: `<input id="swal-phone" class="swal2-input" placeholder="เบอร์โทรศัพท์" type="tel" value="${memberPhone.value}"><input id="swal-name" class="swal2-input" placeholder="ชื่อลูกค้า" type="text">`,
     focusConfirm: false,
     showCancelButton: true,
     confirmButtonText: 'บันทึก',
     cancelButtonText: 'ยกเลิก',
-    preConfirm: () => {
-      return { phone: document.getElementById('swal-phone').value, name: document.getElementById('swal-name').value }
-    }
+    preConfirm: () => { return { phone: document.getElementById('swal-phone').value, name: document.getElementById('swal-name').value } }
   })
-
   if (formValues && formValues.phone && formValues.name) {
     const { error } = await supabase.from('members').insert({ phone: formValues.phone, name: formValues.name, points: 0, total_spent: 0 })
     if (error) Swal.fire('ผิดพลาด', 'เบอร์นี้อาจมีในระบบแล้ว', 'error')
-    else {
-      memberPhone.value = formValues.phone
-      searchMember()
-    }
+    else { memberPhone.value = formValues.phone; searchMember() }
   }
 }
 
@@ -575,94 +618,47 @@ const submitPayment = async () => {
   try {
     const finalReceived = paymentMethod.value === 'Cash' ? Number(numpadValue.value) : netTotal.value
     
-    // 1. อัปเดตสถานะบิลเป็น Paid
-    const { error: orderError } = await supabase.from('orders').update({ 
-      status: 'Paid', 
-      total_amount: netTotal.value,
-      payment_method: paymentMethod.value,
-      received_amount: finalReceived,
-      change_amount: changeAmount.value
-    }).eq('id', currentOrderId.value)
+    await supabase.from('orders').update({ status: 'Paid', total_amount: netTotal.value, payment_method: paymentMethod.value, received_amount: finalReceived, change_amount: changeAmount.value }).eq('id', currentOrderId.value)
+    await supabase.from('tables').update({ status: 'Available', service_request: null, session_token: null }).eq('id', selectedTable.value.id)
 
-    if (orderError) throw orderError
-    
-    // 2. เคลียร์โต๊ะให้ว่าง และทำลาย Token (เพื่อให้มือถือเด้งออก)
-    const { error: tableError } = await supabase.from('tables').update({ 
-      status: 'Available', 
-      service_request: null, 
-      session_token: null 
-    }).eq('id', selectedTable.value.id)
-    if (tableError) throw tableError
-
-    // 3. จัดการแต้มสมาชิก
     if (memberInfo.value) {
       const earnRate = Number(storeSettings.value.PointEarnRate) || 100
       const earnedPoints = Math.floor(netTotal.value / earnRate)
       const usedPoints = Number(usePointsAmount.value) || 0
-      
-      const { error: memberError } = await supabase.from('members').update({ 
-        total_spent: Number(memberInfo.value.total_spent) + netTotal.value, 
-        points: Number(memberInfo.value.points) - usedPoints + earnedPoints 
-      }).eq('phone', memberInfo.value.phone)
-
-      if (memberError) throw memberError
+      await supabase.from('members').update({ total_spent: Number(memberInfo.value.total_spent) + netTotal.value, points: Number(memberInfo.value.points) - usedPoints + earnedPoints }).eq('phone', memberInfo.value.phone)
     }
 
-    const { data: orderItems } = await supabase
-      .from('order_details')
-      .select('quantity, menus(inventory_id)')
-      .eq('order_id', currentOrderId.value)
-      .neq('kitchen_status', 'Cancelled')
-      .neq('kitchen_status', 'Voided')
-
+    const { data: orderItems } = await supabase.from('order_details').select('quantity, menus(inventory_id)').eq('order_id', currentOrderId.value).neq('kitchen_status', 'Cancelled').neq('kitchen_status', 'Voided')
     if (orderItems) {
       const stockToDeduct = {}
-      
-      orderItems.forEach(item => {
-        const invId = item.menus?.inventory_id
-        if (invId) stockToDeduct[invId] = (stockToDeduct[invId] || 0) + item.quantity
-      })
-
+      orderItems.forEach(item => { const invId = item.menus?.inventory_id; if (invId) stockToDeduct[invId] = (stockToDeduct[invId] || 0) + item.quantity })
       for (const [invId, qtyToDeduct] of Object.entries(stockToDeduct)) {
         const { data: invItem } = await supabase.from('inventory').select('item_name, stock_qty').eq('id', invId).single()
         if (invItem) {
           const newQty = Number(invItem.stock_qty) - qtyToDeduct
-          
           await supabase.from('inventory').update({ stock_qty: newQty }).eq('id', invId)
-          await supabase.from('inventory_logs').insert([{
-            item_name: invItem.item_name,
-            action: `ขายหน้าร้าน (บิล #${currentOrderId.value.split('-')[0].toUpperCase()})`,
-            qty_change: -qtyToDeduct,
-            remaining: newQty
-          }])
+          await supabase.from('inventory_logs').insert([{ item_name: invItem.item_name, action: `ขายหน้าร้าน (บิล #${currentOrderId.value.split('-')[0].toUpperCase()})`, qty_change: -qtyToDeduct, remaining: newQty }])
         }
       }
     }
 
     successChangeAmount.value = changeAmount.value
     lastOrderForReceipt.value = {
-      id: currentOrderId.value,
-      table_name: selectedTable.value.table_name,
-      created_at: new Date().toISOString(),
-      payment_method: paymentMethod.value,
-      items: [...activeItems.value],
-      total_amount: netTotal.value,
-      received_amount: finalReceived,
-      change_amount: changeAmount.value
+      id: currentOrderId.value, table_name: selectedTable.value.table_name, created_at: new Date().toISOString(), payment_method: paymentMethod.value,
+      items: [...activeItems.value], total_amount: netTotal.value, received_amount: finalReceived, change_amount: changeAmount.value
     }
 
     showPaymentModal.value = false
     showSuccessModal.value = true
     clearTable()
-
   } catch (error) {
-    console.error("Payment Error:", error)
     Swal.fire('ผิดพลาด', 'ไม่สามารถปิดบิลได้ กรุณาตรวจสอบฐานข้อมูล', 'error')
   } finally {
     isSubmitting.value = false
   }
 }
 
+// 🖨️ 🌟 พิมพ์ใบเสร็จลูกค้าแบบ Iframe 🌟
 const printReceipt = () => {
   if (!lastOrderForReceipt.value) return
   const order = lastOrderForReceipt.value
@@ -679,8 +675,7 @@ const printReceipt = () => {
     `
   })
 
-  const printWindow = window.open('', '', 'width=400,height=600')
-  printWindow.document.write(`
+  const html = `
     <html><head><title>Print Receipt</title>
     <style>
       @page { margin: 0; size: 80mm auto; }
@@ -688,10 +683,6 @@ const printReceipt = () => {
       .text-center { text-align: center; }
       .font-black { font-weight: 900; }
       .font-bold { font-weight: bold; }
-      .text-xl { font-size: 20px; }
-      .text-2xl { font-size: 24px; }
-      .text-xs { font-size: 12px; }
-      .text-sm { font-size: 14px; }
       .mb-1 { margin-bottom: 4px; }
       .mb-5 { margin-bottom: 20px; }
       .flex { display: flex; }
@@ -710,13 +701,11 @@ const printReceipt = () => {
       <div class="text-sm font-bold mb-5">
         <div class="flex justify-between mb-1"><span>เลขที่:</span><span style="font-family: monospace;">INV-${order.id.split('-')[0].toUpperCase()}</span></div>
         <div class="flex justify-between mb-1"><span>โต๊ะ:</span><span class="text-dark">${order.table_name}</span></div>
-        <div class="flex justify-between mb-1"><span>เวลาจ่าย:</span><span class="text-dark">${new Date(order.created_at).toLocaleString('th-TH')}</span></div>
+        <div class="flex justify-between mb-1"><span>เวลา:</span><span class="text-dark">${new Date(order.created_at).toLocaleString('th-TH')}</span></div>
         <div class="flex justify-between mb-1"><span>ชำระโดย:</span><span class="text-dark">${order.payment_method}</span></div>
       </div>
       <div class="border-dashed"></div>
-      <div class="font-bold mb-5 min-h-[100px]">
-        ${itemsHtml}
-      </div>
+      <div class="font-bold mb-5 min-h-[100px]">${itemsHtml}</div>
       <div class="border-solid"></div>
       <div class="font-bold mb-5">
         <div class="flex justify-between text-xl font-black text-dark mb-3"><span>ยอดสุทธิ (฿):</span><span>${Number(order.total_amount).toLocaleString(undefined, {minimumFractionDigits: 2})}</span></div>
@@ -725,30 +714,21 @@ const printReceipt = () => {
       </div>
       <div class="border-dashed"></div>
       <div class="text-center text-xs font-bold mt-5" style="color: #9ca3af;">${footerText}</div>
-      <script>
-        window.onload = () => { window.print(); window.close(); }
-      <\/script>
     </body></html>
-  `)
-  printWindow.document.close()
+  `
+  printToIframe(html)
 }
 
+// 🖨️ 🌟 พิมพ์ QR Code แบบ Iframe 🌟
 const printQR = (title, imgUrl) => {
-  const printWindow = window.open('', '', 'width=400,height=600')
-  printWindow.document.write(`<html><head><title>Print QR</title><style>@page{margin:0;size:80mm auto;}body{font-family:'Kanit',sans-serif;width:80mm;margin:0 auto;padding:15px;text-align:center;color:#000;box-sizing:border-box;}h2{margin:0 0 5px 0;font-size:26px;font-weight:900;}p{margin:0 0 10px 0;font-size:16px;font-weight:bold;}img{width:220px;height:220px;margin:10px auto;display:block;}.footer{margin-top:15px;border-top:2px dashed #000;padding-top:10px;font-size:14px;font-weight:bold;}</style><link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;700;900&display=swap" rel="stylesheet"></head><body><h2>RM Pro</h2><p>สั่งอาหารผ่านมือถือ</p><h2 style="font-size: 36px; border: 3px solid #000; padding: 5px; margin-top: 10px; border-radius: 10px;">${title}</h2><img src="${imgUrl}" onload="window.print(); window.close();" /><div class="footer">ขอบคุณที่ใช้บริการครับ</div></body></html>`)
-  printWindow.document.close()
+  const html = `<html><head><title>Print QR</title><style>@page{margin:0;size:80mm auto;}body{font-family:'Kanit',sans-serif;width:80mm;margin:0 auto;padding:15px;text-align:center;color:#000;box-sizing:border-box;}h2{margin:0 0 5px 0;font-size:26px;font-weight:900;}p{margin:0 0 10px 0;font-size:16px;font-weight:bold;}.footer{margin-top:15px;border-top:2px dashed #000;padding-top:10px;font-size:14px;font-weight:bold;}</style><link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;700;900&display=swap" rel="stylesheet"></head><body><h2>RM Pro</h2><p>สั่งอาหารผ่านมือถือ</p><h2 style="font-size: 36px; border: 3px solid #000; padding: 5px; margin-top: 10px; border-radius: 10px;">${title}</h2><img src="${imgUrl}" style="width:220px;height:220px;margin:10px auto;display:block;" /><div class="footer">ขอบคุณที่ใช้บริการครับ</div></body></html>`
+  printToIframe(html)
 }
 
 const generateQR = async () => {
   if (!selectedTable.value) return
-  
   const newToken = Math.random().toString(36).substring(2, 10);
-  
-  await supabase.from('tables').update({ 
-    session_token: newToken,
-    status: 'Occupied' 
-  }).eq('id', selectedTable.value.id);
-  
+  await supabase.from('tables').update({ session_token: newToken, status: 'Occupied' }).eq('id', selectedTable.value.id);
   selectedTable.value.session_token = newToken;
   selectedTable.value.status = 'Occupied';
 
@@ -772,11 +752,7 @@ const generateQR = async () => {
   `
 
   Swal.fire({
-    html: htmlStr,
-    showConfirmButton: false, 
-    width: '400px', 
-    padding: '2rem',
-    customClass: { popup: '!rounded-[2.5rem]' },
+    html: htmlStr, showConfirmButton: false, width: '400px', padding: '2rem', customClass: { popup: '!rounded-[2.5rem]' },
     didOpen: () => {
       document.getElementById('btn-close-qr').addEventListener('click', () => Swal.close())
       document.getElementById('btn-print-qr').addEventListener('click', () => printQR(selectedTable.value.table_name, qrImageSrc))
@@ -784,18 +760,14 @@ const generateQR = async () => {
   })
 }
 
-// 🌟 ระบบ Real-time ของฝั่ง POS 🌟
 const setupPosRealtime = () => {
-  posRealtimeChannel = supabase.channel('pos_order_updates')
+  posRealtimeChannel.value = supabase.channel('pos_order_updates')
     .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'order_details' }, payload => {
        if (currentOrderId.value && payload.new.order_id === currentOrderId.value) {
          const idx = activeItems.value.findIndex(item => item.id === payload.new.id)
-         if (idx !== -1) {
-           activeItems.value[idx].kitchen_status = payload.new.kitchen_status
-         }
+         if (idx !== -1) activeItems.value[idx].kitchen_status = payload.new.kitchen_status
        }
     })
-    // 🌟 ดักการสร้างออเดอร์ใหม่จากหน้า Mobile (แก้ปัญหาออเดอร์แรกไม่ขึ้น) 🌟
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'orders' }, payload => {
       if (selectedTable.value && payload.new.table_id === selectedTable.value.id) {
         currentOrderId.value = payload.new.id;
@@ -808,7 +780,6 @@ const setupPosRealtime = () => {
          fetchTableOrder(selectedTable.value.id)
          Swal.fire({ icon: 'info', title: 'มีออเดอร์ใหม่จากลูกค้าโต๊ะนี้!', toast: true, position: 'top', timer: 2000, showConfirmButton: false })
        } else if (selectedTable.value && !currentOrderId.value) {
-         // กรณีออเดอร์แรก (ดักเผื่อไว้)
          const { data: orderData } = await supabase.from('orders').select('table_id').eq('id', payload.new.order_id).single()
          if (orderData && orderData.table_id === selectedTable.value.id) {
            currentOrderId.value = payload.new.order_id
@@ -817,9 +788,7 @@ const setupPosRealtime = () => {
          }
        }
     })
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'tables' }, () => {
-       loadTables() // เพื่อให้อัปเดตสถานะโต๊ะที่แผงซ้ายทันที
-    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'tables' }, () => { loadTables() })
     .subscribe()
 }
 
@@ -831,15 +800,12 @@ onMounted(async () => {
   if (route.query.table_id) {
     await loadTables()
     const t = tables.value.find(x => x.id == route.query.table_id)
-    if (t) {
-      await selectTable(t)
-      router.replace('/pos')
-    }
+    if (t) { await selectTable(t); router.replace('/pos') }
   }
 })
 
 onUnmounted(() => {
-  if (posRealtimeChannel) supabase.removeChannel(posRealtimeChannel)
+  if (posRealtimeChannel.value) supabase.removeChannel(posRealtimeChannel.value)
 })
 </script>
 

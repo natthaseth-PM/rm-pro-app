@@ -8,7 +8,7 @@
         </div>
         <div>
           <h1 class="text-2xl md:text-3xl font-black tracking-wide text-white">KDS (Kitchen Display)</h1>
-          <p class="text-xs text-gray-400 font-bold mt-1"><i class="fa-solid fa-circle text-green-500 text-[8px] animate-pulse mr-1"></i> เชื่อมต่อออเดอร์เรียลไทม์</p>
+          <p class="text-xs text-gray-400 font-bold mt-1"><i class="fa-solid fa-circle text-green-500 text-[8px] animate-pulse mr-1"></i> เชื่อมต่อออเดอร์เรียลไทม์ พร้อมเสียงแจ้งเตือน</p>
         </div>
       </div>
       
@@ -91,7 +91,6 @@ const rawDetails = ref([])
 const tablesMap = ref({})
 let realtimeChannel = null
 
-// 🌟 สร้าง State จับเวลาปัจจุบัน
 const now = ref(new Date())
 let timerInterval = null
 
@@ -126,7 +125,6 @@ const getTableName = (orderId) => {
   return item && item.orders ? (tablesMap.value[item.orders.table_id] || 'ไม่ระบุ') : 'ไม่ระบุ'
 }
 
-// 🌟 ฟังก์ชันคำนวณเวลาและสีแจ้งเตือน
 const getWaitTime = (createdAt) => {
   const diffMins = Math.floor((now.value - new Date(createdAt)) / 60000)
   if (diffMins < 1) return 'เพิ่งสั่ง'
@@ -136,9 +134,9 @@ const getWaitTime = (createdAt) => {
 
 const getWaitTimeClass = (createdAt) => {
   const diffMins = Math.floor((now.value - new Date(createdAt)) / 60000)
-  if (diffMins >= 15) return 'bg-red-500 text-white animate-pulse' // เกิน 15 นาที แดงกระพริบ
-  if (diffMins >= 10) return 'bg-orange-500 text-white' // เกิน 10 นาที ส้มเตือน
-  return 'bg-green-600/30 text-green-400 border border-green-600/50' // ปกติ
+  if (diffMins >= 15) return 'bg-red-500 text-white animate-pulse' 
+  if (diffMins >= 10) return 'bg-orange-500 text-white' 
+  return 'bg-green-600/30 text-green-400 border border-green-600/50' 
 }
 
 const updateStatus = async (id, newStatus) => {
@@ -157,17 +155,48 @@ const cancelItem = async (id) => {
   if (result.isConfirmed) updateStatus(id, 'Cancelled')
 }
 
+// 🔊 ฟังก์ชันเล่นเสียงแจ้งเตือน (Audio Alert)
+const playAudioAlert = () => {
+  try {
+    // ใช้ไฟล์เสียงแจ้งเตือนมาตรฐาน
+    const audio = new Audio('https://www.soundjay.com/buttons/sounds/button-09.mp3')
+    audio.play().catch(e => console.log('Autoplay blocked by browser policy. Click anywhere on the screen first.'))
+  } catch (err) {
+    console.error('Audio error:', err)
+  }
+}
+
+// ⚡ ดักฟังข้อมูล Real-time
 const setupRealtime = () => {
   realtimeChannel = supabase.channel('kitchen_kds')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'order_details' }, () => fetchKitchenData())
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'order_details' }, (payload) => {
+       playAudioAlert() // 🔊 ร้องเตือน!
+       fetchKitchenData()
+       
+       // เด้ง Toast สีแดงเตือนพ่อครัว
+       Swal.fire({
+         title: '🔔 ออเดอร์ใหม่เข้า!',
+         text: payload.new.menu_name,
+         toast: true,
+         position: 'top-end',
+         timer: 4000,
+         showConfirmButton: false,
+         background: '#ef4444',
+         color: '#fff'
+       })
+    })
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'order_details' }, () => fetchKitchenData())
+    .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'order_details' }, () => fetchKitchenData())
     .subscribe()
 }
 
 onMounted(() => { 
   fetchKitchenData()
   setupRealtime()
-  // อัปเดตเวลาอัตโนมัติทุกๆ 30 วินาที
   timerInterval = setInterval(() => { now.value = new Date() }, 30000)
+  
+  // แจ้งเตือนผู้ใช้ให้คลิกหน้าจอ 1 ครั้งเพื่อเปิดระบบเสียง (นโยบายของเบราว์เซอร์)
+  Swal.fire({ title: 'KDS พร้อมใช้งาน', text: 'คลิกที่ปุ่มตกลงเพื่อเปิดระบบเสียงแจ้งเตือนออเดอร์', icon: 'success', confirmButtonText: 'ตกลง', confirmButtonColor: '#10b981' })
 })
 
 onUnmounted(() => { 
