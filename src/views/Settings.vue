@@ -128,9 +128,38 @@
     <div v-if="showMemberModal" class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4"><div class="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6"><h2 class="text-xl font-black mb-4">{{ memberForm.action === 'add' ? 'เพิ่มสมาชิก' : 'แก้ไขสมาชิก' }}</h2><form @submit.prevent="submitMemberForm" class="space-y-3 text-sm"><div><label class="block font-bold text-gray-500 mb-1">เบอร์โทร</label><input v-model="memberForm.phone" required :disabled="memberForm.action === 'edit'" class="w-full border rounded-lg px-3 py-2 font-bold"></div><div><label class="block font-bold text-gray-500 mb-1">ชื่อ</label><input v-model="memberForm.name" required class="w-full border rounded-lg px-3 py-2 font-bold"></div><div v-if="memberForm.action === 'edit'" class="grid grid-cols-2 gap-3"><div><label class="block font-bold text-gray-500 mb-1">แต้ม</label><input v-model.number="memberForm.points" type="number" required class="w-full border rounded-lg px-3 py-2 font-bold"></div><div><label class="block font-bold text-gray-500 mb-1">ระดับ</label><select v-model="memberForm.tier" class="w-full border rounded-lg px-3 py-2"><option value="Member">Member</option><option value="Silver">Silver</option><option value="Gold">Gold</option></select></div></div><div class="flex gap-2 pt-3"><button type="button" @click="showMemberModal=false" class="flex-1 py-2 bg-gray-100 rounded-lg font-bold">ยกเลิก</button><button type="submit" class="flex-1 py-2 bg-yellow-500 text-white rounded-lg font-bold">บันทึก</button></div></form></div></div>
     
     <div v-if="showTableModal" class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4"><div class="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6"><h2 class="text-xl font-black mb-4">{{ tableForm.action === 'add' ? 'เพิ่มโต๊ะ' : 'แก้ไข' }}</h2><form @submit.prevent="submitTableForm" class="space-y-3 text-sm"><div><label class="block font-bold text-gray-500 mb-1">ชื่อโต๊ะ</label><input v-model="tableForm.table_name" required class="w-full border rounded-lg px-3 py-2 font-bold"></div><div><label class="block font-bold text-gray-500 mb-1">คำอธิบาย</label><input v-model="tableForm.description" class="w-full border rounded-lg px-3 py-2"></div><div class="flex gap-2 pt-3"><button type="button" @click="showTableModal=false" class="flex-1 py-2 bg-gray-100 rounded-lg font-bold">ยกเลิก</button><button type="submit" class="flex-1 py-2 bg-gray-900 text-white rounded-lg font-bold">บันทึก</button></div></form></div></div>
+    <div v-if="showUserModal" class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+      <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6">
+        <h2 class="text-xl font-black mb-4 flex items-center"><div class="w-10 h-10 bg-gray-100 text-gray-700 rounded-xl flex items-center justify-center mr-3 text-sm"><i class="fa-solid fa-user-gear"></i></div>{{ userForm.action === 'add' ? 'เพิ่มพนักงาน' : 'แก้ไขสิทธิ์' }}</h2>
+        <form @submit.prevent="submitUserForm" class="space-y-3 text-sm">
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block font-bold text-gray-500 mb-1 uppercase text-[10px]">Username</label>
+              <input v-model="userForm.username" required :disabled="userForm.action === 'edit'" class="w-full bg-gray-50 border rounded-lg px-3 py-2 font-bold outline-none focus:border-gray-900">
+            </div>
+            <div>
+              <label class="block font-bold text-gray-500 mb-1 uppercase text-[10px]">Password</label>
+              <input v-model="userForm.password" :required="userForm.action === 'add'" :placeholder="userForm.action === 'edit' ? 'เว้นว่างถ้าไม่เปลี่ยน' : 'รหัสผ่านใหม่'" class="w-full bg-gray-50 border rounded-lg px-3 py-2 font-bold outline-none focus:border-gray-900">
+            </div>
+          </div>
+          <div><label class="block font-bold text-gray-500 mb-1 uppercase text-[10px]">ตำแหน่ง (Role)</label><select v-model="userForm.role" required class="w-full bg-gray-50 border rounded-lg px-3 py-2 font-bold outline-none focus:border-gray-900"><option v-for="r in roleOptions" :key="r.id" :value="r.option_value">{{ r.option_value }}</option></select></div>
+          <div class="bg-blue-50/50 p-4 rounded-xl border border-blue-100">
+            <label class="block font-black text-blue-800 mb-2 uppercase text-[10px]">สิทธิ์การเข้าถึงหน้า</label>
+            <div class="grid grid-cols-2 gap-2 text-blue-900 font-bold">
+              <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" v-model="userForm.allowed_pages" value="dashboard" class="accent-blue-600"> Dashboard</label>
+              <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" v-model="userForm.allowed_pages" value="pos" class="accent-blue-600"> POS</label>
+              <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" v-model="userForm.allowed_pages" value="tables" class="accent-blue-600"> ผังโต๊ะ</label>
+              <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" v-model="userForm.allowed_pages" value="kitchen" class="accent-blue-600"> ห้องครัว</label>
+              <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" v-model="userForm.allowed_pages" value="history" class="accent-blue-600"> บิล</label>
+              <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" v-model="userForm.allowed_pages" value="reports" class="accent-blue-600"> รายงาน</label>
+              <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" v-model="userForm.allowed_pages" value="settings" class="accent-blue-600"> ตั้งค่า</label>
+            </div>
+          </div>
+          <div class="flex gap-2 pt-3"><button type="button" @click="showUserModal=false" class="flex-1 py-2 bg-gray-100 rounded-lg font-bold">ยกเลิก</button><button type="submit" class="flex-1 py-2 bg-gray-900 text-white rounded-lg font-black shadow-lg active:scale-95 transition-all">บันทึกสิทธิ์</button></div>
+        </form>
+      </div>
+    </div>
     
-    <div v-if="showUserModal" class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4"><div class="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6"><h2 class="text-xl font-black mb-4">{{ userForm.action === 'add' ? 'เพิ่มพนักงาน' : 'แก้ไขสิทธิ์' }}</h2><form @submit.prevent="submitUserForm" class="space-y-3 text-sm"><div class="grid grid-cols-2 gap-3"><div><label class="block font-bold text-gray-500 mb-1">Username</label><input v-model="userForm.username" required :disabled="userForm.action === 'edit'" class="w-full border rounded-lg px-3 py-2 font-bold"></div><div><label class="block font-bold text-gray-500 mb-1">Password</label><input v-model="userForm.password" required class="w-full border rounded-lg px-3 py-2 font-bold"></div></div><div><label class="block font-bold text-gray-500 mb-1">ตำแหน่ง</label><select v-model="userForm.role" required class="w-full border rounded-lg px-3 py-2"><option v-for="r in roleOptions" :key="r.id" :value="r.option_value">{{ r.option_value }}</option></select></div><div class="bg-gray-50 p-3 rounded-lg"><label class="block font-bold mb-2">สิทธิ์เข้าถึงหน้า</label><div class="grid grid-cols-2 gap-2"><label><input type="checkbox" v-model="userForm.allowed_pages" value="pos"> POS</label><label><input type="checkbox" v-model="userForm.allowed_pages" value="tables"> ผังโต๊ะ</label><label><input type="checkbox" v-model="userForm.allowed_pages" value="kitchen"> ห้องครัว</label><label><input type="checkbox" v-model="userForm.allowed_pages" value="history"> บิล</label><label><input type="checkbox" v-model="userForm.allowed_pages" value="reports"> รายงาน</label><label><input type="checkbox" v-model="userForm.allowed_pages" value="settings"> ตั้งค่า</label></div></div><div class="flex gap-2 pt-3"><button type="button" @click="showUserModal=false" class="flex-1 py-2 bg-gray-100 rounded-lg font-bold">ยกเลิก</button><button type="submit" class="flex-1 py-2 bg-gray-900 text-white rounded-lg font-bold">บันทึก</button></div></form></div></div>
-
   </div>
 </template>
 
@@ -287,11 +316,45 @@ const submitTableForm = async () => {
 const deleteTable = async (table) => { if (table.status !== 'Available') return Toast.fire({ icon: 'error', title: 'ลบไม่ได้ มีลูกค้าอยู่' }); const res = await Swal.fire({ title: 'ลบโต๊ะ?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444' }); if (res.isConfirmed) { await supabase.from('tables').delete().eq('id', table.id); Toast.fire({ icon: 'success', title: 'ลบสำเร็จ' }); loadAllData() } }
 
 const openUserModal = (action, user = null) => { userForm.value = action === 'add' ? { username: '', password: '', role: '', allowed_pages: [], action: 'add' } : { ...user, allowed_pages: user.allowed_pages ? user.allowed_pages.split(',') : [], action: 'edit' }; showUserModal.value = true }
-const submitUserForm = async () => {
-  const payload = { store_id: myStoreId.value, username: userForm.value.username, password: userForm.value.password, role: userForm.value.role, allowed_pages: userForm.value.allowed_pages.join(',') }
-  if(userForm.value.action === 'add') await supabase.from('users').insert([payload]); else await supabase.from('users').update(payload).eq('id', userForm.value.id)
-  showUserModal.value = false; Toast.fire({ icon: 'success', title: 'สำเร็จ' }); loadAllData()
+// 🔐 เพิ่มฟังก์ชันเข้ารหัส (ใส่ไว้บนๆ ใน <script setup>)
+const hashPassword = async (password) => {
+  const msgBuffer = new TextEncoder().encode(password);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
+
+const openUserModal = (action, user = null) => { 
+  userForm.value = action === 'add' 
+    ? { username: '', password: '', role: '', allowed_pages: [], action: 'add' } 
+    : { ...user, password: '', allowed_pages: user.allowed_pages ? user.allowed_pages.split(',') : [], action: 'edit' }; 
+  showUserModal.value = true 
+}
+
+const submitUserForm = async () => {
+  const payload = { 
+    store_id: myStoreId.value, 
+    username: userForm.value.username, 
+    role: userForm.value.role, 
+    allowed_pages: userForm.value.allowed_pages.join(',') 
+  }
+  
+  // 🔐 เข้ารหัสรหัสผ่านก่อนบันทึก
+  if (userForm.value.password) {
+    payload.password = await hashPassword(userForm.value.password)
+  }
+
+  let error; 
+  if(userForm.value.action === 'add') { 
+    const res = await supabase.from('users').insert([payload]); error = res.error 
+  } else { 
+    const res = await supabase.from('users').update(payload).eq('id', userForm.value.id); error = res.error 
+  }
+  showUserModal.value = false; 
+  if(error) Toast.fire({ icon: 'error', title: error.message }); 
+  else { Toast.fire({ icon: 'success', title: 'บันทึกสำเร็จ' }); loadAllData() }
+}
+
 const deleteUser = async (user) => { const res = await Swal.fire({ title: 'ลบพนักงาน?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444' }); if (res.isConfirmed) { await supabase.from('users').delete().eq('id', user.id); Toast.fire({ icon: 'success', title: 'ลบสำเร็จ' }); loadAllData() } }
 
 const addQuickOption = async (type) => {

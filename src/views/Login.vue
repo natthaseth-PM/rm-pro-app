@@ -37,20 +37,42 @@ const router = useRouter()
 const isLoggingIn = ref(false)
 const loginForm = ref({ username: '', password: '' })
 
+// 🔐 ฟังก์ชันเข้ารหัสผ่านแบบ SHA-256 
+const hashPassword = async (password) => {
+  const msgBuffer = new TextEncoder().encode(password);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
 const handleLogin = async () => {
   if (!loginForm.value.username || !loginForm.value.password) return
   isLoggingIn.value = true
 
   try {
-    const { data: user, error } = await supabase.from('users').select('*, stores(*)').eq('username', loginForm.value.username).eq('password', loginForm.value.password).single()
+    const hashedPassword = await hashPassword(loginForm.value.password)
+    
+    // 1. ลองล็อกอินด้วยรหัสผ่านที่เข้ารหัสแล้ว
+    let { data: user, error } = await supabase.from('users').select('*, stores(*)').eq('username', loginForm.value.username).eq('password', hashedPassword).single()
 
-    if (error || !user) {
+    // 2. 🌟 ระบบ Auto-Migrate: ถ้ารหัสผ่านเข้ารหัสหาไม่เจอ ลองค้นหาด้วยรหัสผ่านแบบเก่า (Plain text)
+    if (!user) {
+      const { data: fallbackUser } = await supabase.from('users').select('*, stores(*)').eq('username', loginForm.value.username).eq('password', loginForm.value.password).single()
+      
+      if (fallbackUser) {
+        // อัปเดตรหัสผ่านในฐานข้อมูลให้เป็นแบบเข้ารหัส (Hashed)
+        await supabase.from('users').update({ password: hashedPassword }).eq('id', fallbackUser.id)
+        user = fallbackUser
+      }
+    }
+
+    if (!user) {
       Swal.fire({ icon: 'error', title: 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง!' })
       isLoggingIn.value = false
       return
     }
 
-    // 🛑 ถ้า "ไม่ใช่" SuperAdmin ให้เช็คสถานะร้าน
+    // 🛑 ตรวจสอบสถานะร้านค้า
     if (user.role !== 'SuperAdmin') {
       if (!user.stores) {
         Swal.fire({ icon: 'error', title: 'บัญชีนี้ไม่ได้เชื่อมโยงกับร้านค้าใดๆ' })
@@ -63,11 +85,9 @@ const handleLogin = async () => {
       
       if (!user.stores.is_active || expiresAt < now) {
         Swal.fire({
-          icon: 'warning',
-          title: 'แพ็กเกจหมดอายุ / ถูกระงับ',
+          icon: 'warning', title: 'แพ็กเกจหมดอายุ / ถูกระงับ',
           html: '<p class="text-sm font-bold text-gray-600 mt-2">ระบบของคุณหมดอายุหรือถูกระงับการใช้งาน<br>กรุณาติดต่อ <b>คุณสุวรรณ (Suwonp)</b> เพื่อต่ออายุครับ</p>',
-          confirmButtonText: 'รับทราบ',
-          confirmButtonColor: '#f97316'
+          confirmButtonText: 'รับทราบ', confirmButtonColor: '#f97316'
         })
         isLoggingIn.value = false
         return
@@ -77,7 +97,6 @@ const handleLogin = async () => {
     localStorage.setItem('rmpro_user', JSON.stringify(user))
     Swal.fire({ icon: 'success', title: `ยินดีต้อนรับ ${user.username}`, toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 })
     
-    // แยกทางเดิน
     if(user.role === 'SuperAdmin') router.push('/superadmin')
     else router.push('/dashboard') 
 
