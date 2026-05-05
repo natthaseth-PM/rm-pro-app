@@ -21,7 +21,7 @@
               <td class="p-4">
                 <div class="font-black text-gray-900 text-lg">{{ store.store_name }}</div>
                 <div class="text-xs font-bold text-gray-500 mt-1"><i class="fa-solid fa-user text-gray-300 mr-1"></i> {{ store.contact_name || '-' }}</div>
-                <div class="text-[10px] font-mono text-gray-400 mt-1 bg-gray-100 px-2 py-0.5 rounded w-fit border border-gray-200" title="Store ID">{{ store.id }}</div>
+                <div class="text-[10px] font-mono text-gray-400 mt-1 bg-gray-100 px-2 py-0.5 rounded w-fit border border-gray-200">ID: {{ store.id }}</div>
               </td>
               <td class="p-4 text-center"><span :class="store.package_type === 'Pro' ? 'bg-purple-100 text-purple-700 border-purple-200' : 'bg-gray-100 text-gray-600 border-gray-200'" class="px-3 py-1 rounded-full text-[10px] font-black uppercase border tracking-wider">{{ store.package_type }}</span></td>
               <td class="p-4 text-center">
@@ -34,10 +34,10 @@
                 <span v-else class="text-red-500 font-black text-[11px] uppercase tracking-wider"><i class="fa-solid fa-ban"></i> Suspended</span>
               </td>
               <td class="p-4 text-center">
-                <button @click="openStoreModal('edit', store)" class="w-10 h-10 bg-white border border-gray-200 hover:bg-blue-50 hover:border-blue-500 hover:text-blue-600 rounded-xl text-gray-500 transition-colors shadow-sm" title="แก้ไขข้อมูลร้าน"><i class="fa-solid fa-pen"></i></button>
+                <button @click="openStoreModal('edit', store)" class="w-10 h-10 bg-white border border-gray-200 hover:bg-blue-500 hover:border-blue-500 hover:text-blue-600 rounded-xl text-gray-500 transition-colors shadow-sm"><i class="fa-solid fa-pen"></i></button>
               </td>
               <td class="p-4 text-center">
-                <button @click="openStoreUsers(store)" class="px-4 py-2 bg-gray-900 hover:bg-black text-white font-bold rounded-xl text-xs transition-colors shadow-sm"><i class="fa-solid fa-users mr-1"></i> พนักงาน</button>
+                <button @click="openStoreUsers(store)" class="px-4 py-2 bg-gray-900 hover:bg-black text-white font-bold rounded-xl text-xs transition-all active:scale-95 shadow-sm"><i class="fa-solid fa-users mr-1"></i> พนักงาน</button>
               </td>
             </tr>
           </tbody>
@@ -45,30 +45,30 @@
       </div>
     </main>
 
-    <div v-if="showModal" class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div v-if="showModal" class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
       <div class="bg-white rounded-[2rem] shadow-2xl w-full max-w-lg p-8 animate-[fadeIn_0.2s_ease-out]">
-        <h2 class="text-2xl font-black mb-6 flex items-center"><div class="w-10 h-10 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center mr-3"><i class="fa-solid fa-store"></i></div>{{ form.action === 'add' ? 'เปิดร้านค้าใหม่' : 'แก้ไขข้อมูลร้านค้า' }}</h2>
+        <h2 class="text-2xl font-black mb-6 flex items-center"><div class="w-10 h-10 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center mr-3 text-lg"><i class="fa-solid fa-store"></i></div>{{ form.action === 'add' ? 'เปิดร้านค้าใหม่' : 'แก้ไขข้อมูลร้านค้า' }}</h2>
         <form @submit.prevent="submitStore" class="space-y-4">
-          <div><label class="block text-[11px] font-bold text-gray-500 mb-1 uppercase tracking-wider">ชื่อร้าน</label><input v-model="form.store_name" type="text" required class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 outline-none focus:border-blue-500 focus:bg-white font-bold transition-all"></div>
+          <div><label class="block text-[11px] font-bold text-gray-500 mb-1 uppercase tracking-widest">ชื่อร้าน</label><input v-model="form.store_name" type="text" required class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 outline-none focus:border-blue-500 focus:bg-white font-bold transition-all"></div>
           <div class="grid grid-cols-2 gap-4">
-            <div><label class="block text-[11px] font-bold text-gray-500 mb-1 uppercase tracking-wider">แพ็กเกจ</label><select v-model="form.package_type" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 outline-none font-bold cursor-pointer transition-all"><option value="Standard">Standard</option><option value="Pro">Pro</option></select></div>
-            <div><label class="block text-[11px] font-bold text-gray-500 mb-1 uppercase tracking-wider">สถานะระบบ</label><select v-model="form.is_active" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 outline-none font-bold cursor-pointer transition-all"><option :value="true">Active (เปิดใช้งาน)</option><option :value="false">Suspended (ระงับ)</option></select></div>
+            <div><label class="block text-[11px] font-bold text-gray-500 mb-1 uppercase tracking-widest">แพ็กเกจ</label><select v-model="form.package_type" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 outline-none font-bold cursor-pointer transition-all"><option value="Standard">Standard</option><option value="Pro">Pro</option></select></div>
+            <div><label class="block text-[11px] font-bold text-gray-500 mb-1 uppercase tracking-widest">สถานะระบบ</label><select v-model="form.is_active" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 outline-none font-bold cursor-pointer transition-all"><option :value="true">Active (เปิดใช้งาน)</option><option :value="false">Suspended (ระงับ)</option></select></div>
           </div>
-          <div><label class="block text-[11px] font-bold text-gray-500 mb-1 uppercase tracking-wider">วันหมดอายุ (Expiry Date)</label><input v-model="form.expires_at" type="date" required class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 outline-none font-bold cursor-pointer transition-all"></div>
+          <div><label class="block text-[11px] font-bold text-gray-500 mb-1 uppercase tracking-widest">วันหมดอายุ</label><input v-model="form.expires_at" type="date" required class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 outline-none font-bold cursor-pointer transition-all"></div>
           <div class="border-t border-gray-100 pt-4 mt-4">
             <h4 class="text-sm font-black mb-3 text-gray-700">ข้อมูลผู้ติดต่อ (Owner)</h4>
             <div class="space-y-3">
-              <input v-model="form.contact_name" type="text" placeholder="ชื่อผู้ติดต่อ" class="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 outline-none focus:border-blue-500 font-bold text-sm">
-              <input v-model="form.contact_phone" type="text" placeholder="เบอร์โทรศัพท์" class="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 outline-none focus:border-blue-500 font-bold text-sm">
+              <input v-model="form.contact_name" type="text" placeholder="ชื่อผู้ติดต่อ" class="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 outline-none focus:border-blue-500 font-bold text-sm shadow-inner">
+              <input v-model="form.contact_phone" type="text" placeholder="เบอร์โทรศัพท์" class="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 outline-none focus:border-blue-500 font-bold text-sm shadow-inner">
             </div>
           </div>
-          <div class="flex gap-3 pt-4"><button type="button" @click="showModal = false" class="flex-1 py-3 bg-gray-100 rounded-xl font-bold text-gray-600 hover:bg-gray-200 transition-colors">ยกเลิก</button><button type="submit" :disabled="isSubmitting" class="flex-1 py-3 bg-blue-600 disabled:bg-blue-300 text-white rounded-xl font-black shadow-lg hover:bg-blue-700 transition-colors"><i v-if="isSubmitting" class="fa-solid fa-circle-notch fa-spin mr-2"></i><i v-else class="fa-solid fa-save mr-2"></i> บันทึก</button></div>
+          <div class="flex gap-3 pt-4"><button type="button" @click="showModal = false" class="flex-1 py-3 bg-gray-100 rounded-xl font-bold text-gray-600 hover:bg-gray-200 transition-colors">ยกเลิก</button><button type="submit" :disabled="isSubmitting" class="flex-1 py-3 bg-blue-600 disabled:bg-blue-300 text-white rounded-xl font-black shadow-lg hover:bg-blue-700 transition-colors"><i v-if="isSubmitting" class="fa-solid fa-circle-notch fa-spin mr-2"></i> บันทึกข้อมูล</button></div>
         </form>
       </div>
     </div>
 
-    <div v-if="showUsersModal" class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div class="bg-white rounded-[2rem] shadow-2xl w-full max-w-3xl h-[85vh] flex flex-col overflow-hidden animate-[fadeIn_0.2s_ease-out]">
+    <div v-if="showUsersModal" class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+      <div class="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-3xl h-[85vh] flex flex-col overflow-hidden animate-[fadeIn_0.2s_ease-out]">
         <div class="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
           <div>
             <h2 class="text-xl font-black text-gray-800">พนักงานร้าน: <span class="text-blue-600">{{ selectedStoreForUsers?.store_name }}</span></h2>
@@ -79,30 +79,32 @@
 
         <div v-if="userView === 'list'" class="flex-1 overflow-y-auto p-6">
           <div class="flex justify-end mb-4"><button @click="openStoreUserForm('add')" class="bg-gray-900 hover:bg-black text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-md transition-all active:scale-95"><i class="fa-solid fa-user-plus mr-2"></i> สร้างบัญชีพนักงาน</button></div>
-          <table class="w-full text-left border-collapse">
-            <thead><tr class="bg-gray-100 text-gray-500 text-[10px] uppercase tracking-wider"><th class="p-4 font-bold rounded-tl-xl">Username</th><th class="p-4 font-bold text-center">ตำแหน่ง</th><th class="p-4 font-bold">สิทธิ์การเข้าถึง</th><th class="p-4 font-bold text-center rounded-tr-xl">จัดการ</th></tr></thead>
-            <tbody class="divide-y divide-gray-100">
-              <tr v-if="storeUsers.length === 0"><td colspan="4" class="text-center py-10 text-gray-400 font-bold">ยังไม่มีพนักงานในร้านนี้</td></tr>
-              <tr v-for="u in storeUsers" :key="u.id" class="hover:bg-gray-50 text-sm border-b border-gray-100">
-                <td class="p-4 font-black text-gray-800"><i class="fa-solid fa-circle-user text-gray-300 mr-2"></i>{{ u.username }}</td>
-                <td class="p-4 text-center"><span class="bg-gray-100 border border-gray-200 px-3 py-1 rounded-full text-[10px] font-bold">{{ u.role }}</span></td>
-                <td class="p-4"><div class="flex flex-wrap gap-1"><span v-for="page in (u.allowed_pages ? u.allowed_pages.split(',') : [])" :key="page" class="text-[9px] bg-blue-50 text-blue-600 border border-blue-100 px-1.5 py-0.5 rounded uppercase">{{ page }}</span></div></td>
-                <td class="p-4 text-center space-x-2">
-                  <button @click="openStoreUserForm('edit', u)" class="text-blue-500 hover:text-blue-700 bg-blue-50 p-2 rounded-lg transition-colors"><i class="fa-solid fa-pen"></i></button>
-                  <button @click="deleteStoreUser(u.id)" class="text-red-500 hover:text-red-700 bg-red-50 p-2 rounded-lg transition-colors"><i class="fa-solid fa-trash"></i></button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+          <div class="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
+            <table class="w-full text-left border-collapse">
+              <thead><tr class="bg-gray-50 text-gray-500 text-[10px] uppercase tracking-wider"><th class="p-4 font-bold">Username</th><th class="p-4 font-bold text-center">ตำแหน่ง</th><th class="p-4 font-bold">สิทธิ์การเข้าถึง</th><th class="p-4 font-bold text-center">จัดการ</th></tr></thead>
+              <tbody class="divide-y divide-gray-100">
+                <tr v-if="storeUsers.length === 0"><td colspan="4" class="text-center py-10 text-gray-400 font-bold">ยังไม่มีพนักงานในร้านนี้</td></tr>
+                <tr v-for="u in storeUsers" :key="u.id" class="hover:bg-gray-50 text-sm">
+                  <td class="p-4 font-black text-gray-800"><i class="fa-solid fa-circle-user text-gray-300 mr-2"></i>{{ u.username }}</td>
+                  <td class="p-4 text-center"><span class="bg-gray-100 border border-gray-200 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest">{{ u.role }}</span></td>
+                  <td class="p-4"><div class="flex flex-wrap gap-1"><span v-for="page in (u.allowed_pages ? u.allowed_pages.split(',') : [])" :key="page" class="text-[9px] bg-blue-50 text-blue-600 border border-blue-100 px-1.5 py-0.5 rounded uppercase">{{ page }}</span></div></td>
+                  <td class="p-4 text-center space-x-2">
+                    <button @click="openStoreUserForm('edit', u)" class="text-blue-500 hover:text-blue-700 bg-blue-50 p-2 rounded-lg transition-colors"><i class="fa-solid fa-pen"></i></button>
+                    <button @click="deleteStoreUser(u.id)" class="text-red-500 hover:text-red-700 bg-red-50 p-2 rounded-lg transition-colors"><i class="fa-solid fa-trash"></i></button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
 
-        <div v-if="userView !== 'list'" class="flex-1 overflow-y-auto p-6 bg-gray-50">
+        <div v-else class="flex-1 overflow-y-auto p-6 bg-gray-50">
           <div class="max-w-xl mx-auto bg-white p-8 rounded-3xl shadow-sm border border-gray-200">
-            <h3 class="text-xl font-black mb-6"><i class="fa-solid fa-user-shield text-gray-400 mr-2"></i> {{ userForm.action === 'add' ? 'เพิ่มบัญชีใหม่' : 'แก้ไขบัญชี' }}</h3>
+            <h3 class="text-xl font-black mb-6 flex items-center"><div class="w-10 h-10 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center mr-3 text-sm"><i class="fa-solid fa-user-shield"></i></div>{{ userForm.action === 'add' ? 'เพิ่มบัญชีใหม่' : 'แก้ไขบัญชี' }}</h3>
             <form @submit.prevent="submitStoreUser" class="space-y-4">
               <div class="grid grid-cols-2 gap-4">
                 <div><label class="block text-[11px] font-bold text-gray-500 mb-1 uppercase tracking-wider">Username</label><input v-model="userForm.username" type="text" required :disabled="userForm.action === 'edit'" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 outline-none focus:bg-white font-bold transition-all disabled:opacity-60"></div>
-                <div><label class="block text-[11px] font-bold text-gray-500 mb-1 uppercase tracking-wider">Password</label><input v-model="userForm.password" type="text" :required="userForm.action === 'add'" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 outline-none focus:bg-white font-bold transition-all" :placeholder="userForm.action === 'edit' ? 'ปล่อยว่างถ้าไม่เปลี่ยน' : 'รหัสผ่านใหม่'"></div>
+                <div><label class="block text-[11px] font-bold text-gray-500 mb-1 uppercase tracking-wider">Password</label><input v-model="userForm.password" type="text" :required="userForm.action === 'add'" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 outline-none focus:bg-white font-bold transition-all" :placeholder="userForm.action === 'edit' ? 'เว้นว่างถ้าไม่เปลี่ยน' : 'รหัสผ่านใหม่'"></div>
               </div>
               <div><label class="block text-[11px] font-bold text-gray-500 mb-1 uppercase tracking-wider">ตำแหน่ง (Role)</label><input v-model="userForm.role" type="text" required placeholder="เช่น Admin, Cashier, Chef" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 outline-none font-bold"></div>
               
@@ -134,32 +136,24 @@ import { ref, onMounted } from 'vue'
 import { supabase } from '../supabase'
 import Swal from 'sweetalert2'
 
-// 🔐 ฟังก์ชันเข้ารหัสผ่าน 
-const hashPassword = async (password) => {
-  const msgBuffer = new TextEncoder().encode(password);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-}
-
 const stores = ref([])
 const isLoading = ref(true)
 const isSubmitting = ref(false)
 const showModal = ref(false)
 const form = ref({})
 
-// จัดการ Users ของร้าน
 const showUsersModal = ref(false)
 const selectedStoreForUsers = ref(null)
 const storeUsers = ref([])
-const userView = ref('list') // 'list' | 'add' | 'edit'
+const userView = ref('list') 
 const userForm = ref({})
 const isSubmittingUser = ref(false)
 
 const loadStores = async () => {
   isLoading.value = true
   const { data, error } = await supabase.from('stores').select('*').order('created_at', { ascending: false })
-  if (data) stores.value = data
+  if (error) Swal.fire('Error', 'ดึงข้อมูลไม่สำเร็จ', 'error')
+  else stores.value = data
   isLoading.value = false
 }
 
@@ -193,9 +187,8 @@ const submitStore = async () => {
     }
     
     let response;
-    
     if (form.value.action === 'add') {
-      payload.id = crypto.randomUUID() // 🌟 สร้าง UUID จากฝั่งโค้ด เผื่อฐานข้อมูลลืมสร้างให้
+      payload.id = crypto.randomUUID() 
       response = await supabase.from('stores').insert([payload])
     } else {
       if (!form.value.id) throw new Error("ID ร้านค้าไม่ถูกต้อง")
@@ -214,8 +207,8 @@ const submitStore = async () => {
   }
 }
 
-// 👥 --- ระบบพนักงานร้าน (Store Users) ---
 const openStoreUsers = async (store) => {
+  if (!store || !store.id) { Swal.fire('Error', 'ไม่พบรหัสร้านค้า', 'error'); return }
   selectedStoreForUsers.value = store
   showUsersModal.value = true
   userView.value = 'list'
@@ -249,14 +242,14 @@ const submitStoreUser = async () => {
       allowed_pages: userForm.value.allowed_pages.join(',') 
     }
     
-    // 🔐 เข้ารหัสรหัสผ่านก่อนบันทึก
+    // 🌟 ดึงข้อมูล Password มาตรงๆ ไม่เข้ารหัส 🌟
     if (userForm.value.password) {
-      payload.password = await hashPassword(userForm.value.password)
+      payload.password = userForm.value.password
     }
 
     let response;
     if (userForm.value.action === 'add') {
-      payload.id = crypto.randomUUID() // 🌟 สร้าง UUID ให้ User ด้วย
+      payload.id = crypto.randomUUID()
       response = await supabase.from('users').insert([payload])
     } else {
       if (!userForm.value.id) throw new Error("รหัสพนักงานไม่ถูกต้อง")
