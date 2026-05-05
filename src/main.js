@@ -14,6 +14,7 @@ import History from './views/History.vue'
 import Reports from './views/Reports.vue'
 import Dashboard from './views/Dashboard.vue'
 import Settings from './views/Settings.vue'
+import SuperAdmin from './views/SuperAdmin.vue'
 
 const routes = [
   { path: '/login', name: 'Login', component: Login },
@@ -30,6 +31,7 @@ const routes = [
       { path: 'history', name: 'History', component: History },
       { path: 'reports', name: 'Reports', component: Reports },
       { path: 'settings', name: 'Settings', component: Settings },
+      { path: 'superadmin', name: 'SuperAdmin', component: SuperAdmin },
     ]
   },
   { path: '/:pathMatch(.*)*', redirect: '/' }
