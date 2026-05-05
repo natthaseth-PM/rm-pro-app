@@ -121,7 +121,6 @@
 
     <div v-if="showPaymentModal" class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4 animate-[fadeIn_0.2s_ease-out]">
       <div class="bg-gray-50 rounded-[2rem] shadow-2xl w-full max-w-4xl flex flex-col md:flex-row overflow-hidden max-h-[90vh]">
-        
         <div class="w-full md:w-1/2 bg-white p-6 md:p-8 flex flex-col border-r border-gray-100 overflow-y-auto no-scrollbar">
           <div class="flex justify-between items-center mb-6">
             <h2 class="text-2xl font-black text-gray-800">ชำระเงิน</h2>
@@ -194,7 +193,6 @@
         </div>
 
         <div class="w-full md:w-1/2 p-6 md:p-8 bg-gray-50 flex flex-col relative overflow-hidden border-l border-gray-200">
-          
           <div v-if="paymentMethod === 'Cash'" class="flex-1 flex flex-col">
             <div class="grid grid-cols-3 gap-3 flex-1 mb-4">
               <button v-for="n in [7,8,9,4,5,6,1,2,3]" :key="n" @click="handleNumpad(n.toString())" class="bg-white rounded-2xl shadow-sm border border-gray-200 text-3xl font-bold text-gray-700 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition-colors active:scale-95 flex items-center justify-center py-4">{{ n }}</button>
@@ -258,7 +256,6 @@
 
     <div v-if="showTableModal" class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4 md:p-8 animate-[fadeIn_0.2s_ease-out]">
       <div class="bg-white rounded-[2rem] shadow-2xl w-full max-w-6xl h-[85vh] flex flex-col overflow-hidden border border-white/20">
-        
         <div class="px-8 py-6 flex justify-between items-center bg-gray-50 border-b border-gray-200">
           <div>
             <h2 class="text-2xl font-black text-gray-800 flex items-center gap-3">
@@ -278,17 +275,13 @@
 
           <div v-else class="grid w-full content-start gap-6" style="grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));">
             <button v-for="t in tables" :key="t.id" @click="selectTable(t)" :class="['relative rounded-3xl border-2 transition-all duration-300 flex flex-col items-center justify-center p-5 h-48 group overflow-hidden', t.status === 'Available' ? 'bg-white border-gray-200 hover:border-emerald-500 hover:shadow-xl' : 'bg-orange-50 border-orange-200 hover:border-orange-500 hover:shadow-xl']">
-              
               <div :class="['w-16 h-16 rounded-full flex items-center justify-center transition-all duration-500 mb-3 shadow-sm', t.status === 'Available' ? 'bg-emerald-50 text-emerald-500' : 'bg-orange-200 text-orange-600']">
                 <i class="fa-solid fa-utensils text-2xl group-hover:scale-110 transition-transform"></i>
               </div>
-
               <h3 class="font-black text-gray-800 text-xl">{{ t.table_name }}</h3>
-              
               <div :class="['mt-3 px-4 py-1 rounded-full font-black uppercase tracking-widest text-[10px] shadow-sm', t.status === 'Available' ? 'bg-emerald-500 text-white' : 'bg-orange-500 text-white']">
                 {{ t.status === 'Available' ? 'ว่าง' : 'เปิดบิลแล้ว' }}
               </div>
-
               <div v-if="t.status !== 'Available'" class="absolute top-3 right-3">
                 <span class="flex h-3 w-3 relative"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span><span class="relative inline-flex rounded-full h-3 w-3 bg-orange-500"></span></span>
               </div>
@@ -310,7 +303,6 @@ import Swal from 'sweetalert2'
 const route = useRoute()   
 const router = useRouter() 
 
-// 🌟 ตัวแปรเก็บ Session และ สิทธิ์
 const myStoreId = ref(null)
 const isProPlan = ref(false)
 
@@ -342,7 +334,6 @@ const lastOrderForReceipt = ref(null)
 
 let posRealtimeChannel = null
 
-// 🌟 ลบ "All" ออก ดึงเฉพาะที่มีอยู่จริง
 const availableCategories = computed(() => [...new Set(menus.value.map(item => item.category))])
 const filteredMenus = computed(() => selectedCategory.value ? menus.value.filter(m => m.category === selectedCategory.value) : menus.value)
 
@@ -383,7 +374,6 @@ const loadSettings = async () => {
   if (data) storeSettings.value = Object.fromEntries(data.map(item => [item.setting_key, item.setting_value]))
 }
 
-// 🌟 โหลดเมนู และตั้งค่า Category แรกให้อัตโนมัติ (แทน All)
 const loadMenus = async () => {
   isLoadingMenus.value = true
   const { data } = await supabase.from('menus').select('*').eq('store_id', myStoreId.value).eq('status', 'Available')
@@ -396,7 +386,6 @@ const loadMenus = async () => {
   isLoadingMenus.value = false
 }
 
-// 🌟 โหลดผังโต๊ะ พร้อมจัดเรียงเลข 1, 2, 10 ให้ถูกต้อง (Natural Sort)
 const loadTables = async () => {
   isLoadingTables.value = true
   const { data: tData } = await supabase.from('tables').select('*').eq('store_id', myStoreId.value)
@@ -478,6 +467,7 @@ const printToIframe = (htmlContent) => {
   };
 }
 
+// 🌟 ปรับปรุงการส่งออเดอร์: ลบ Popup แจ้งเตือนพิมพ์ใบครัวออกไป
 const sendOrderToKitchen = async () => {
   if (!selectedTable.value || cart.value.length === 0) return
   isSubmitting.value = true
@@ -495,41 +485,13 @@ const sendOrderToKitchen = async () => {
 
     const details = cart.value.map(item => ({ store_id: myStoreId.value, order_id: orderId, menu_id: item.id, menu_name: item.menu_name, price: item.price, quantity: item.qty, total_price: item.price * item.qty, kitchen_status: 'Pending' }))
     await supabase.from('order_details').insert(details)
-    
-    const itemsToPrint = [...cart.value]; 
-    const tableNameToPrint = selectedTable.value.table_name;
 
     await fetchTableOrder(selectedTable.value.id)
     cart.value = []
     
-    // แจ้งเตือนส่งเข้าครัว หรือ พิมพ์ใบ
-    if (isProPlan.value) {
-      Swal.fire({ 
-        icon: 'success', title: 'ส่งเข้าครัวแล้ว!', text: 'ต้องการพิมพ์ใบสั่งอาหารสำหรับห้องครัวหรือไม่?',
-        showCancelButton: true, confirmButtonText: '<i class="fa-solid fa-print"></i> พิมพ์ใบสั่ง', cancelButtonText: 'ไม่พิมพ์', confirmButtonColor: '#2563eb'
-      }).then((res) => { if (res.isConfirmed) printKitchenTicket(itemsToPrint, tableNameToPrint); });
-    } else {
-      Swal.fire({ icon: 'success', title: 'รับออเดอร์แล้ว!', toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 })
-    }
+    Swal.fire({ icon: 'success', title: 'ส่งเข้าครัวเรียบร้อย!', toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 });
 
   } catch (error) { Swal.fire('ผิดพลาด', 'ไม่สามารถส่งออเดอร์ได้', 'error') } finally { isSubmitting.value = false }
-}
-
-const printKitchenTicket = (items, tableName) => {
-  let itemsHtml = items.map(item => `
-    <div style="display: flex; justify-content: space-between; font-size: 16px; margin-bottom: 8px; font-weight: bold; border-bottom: 1px solid #eee; padding-bottom: 4px;">
-      <div>[ ] ${item.menu_name}</div><div style="font-size: 18px;">x${item.qty}</div>
-    </div>
-  `).join('');
-
-  const html = `
-    <html><head><title>Kitchen Ticket</title><style>@page { margin: 0; size: 80mm auto; } body { font-family: 'Prompt', sans-serif; width: 80mm; margin: 0 auto; padding: 10px; color: #000; box-sizing: border-box; } .text-center { text-align: center; }</style><link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;700;900&display=swap" rel="stylesheet"></head><body>
-      <div class="text-center" style="margin-bottom: 10px;"><h2 style="margin:0; font-size: 24px;">ใบสั่งอาหาร (Kitchen)</h2><h1 style="margin:10px 0; font-size: 36px; border: 3px solid #000; padding: 5px; border-radius: 10px;">โต๊ะ: ${tableName}</h1><p style="margin:0; font-size: 14px; font-weight: bold;">เวลา: ${new Date().toLocaleString('th-TH')}</p></div>
-      <div style="margin-bottom: 20px; margin-top: 15px;">${itemsHtml}</div>
-      <div class="text-center" style="font-size: 12px; font-weight: bold; border-top: 2px dashed #000; padding-top: 10px;">--- สิ้นสุดรายการ ---</div>
-    </body></html>
-  `;
-  printToIframe(html);
 }
 
 const openPayment = () => {
@@ -603,7 +565,7 @@ const submitPayment = async () => {
     lastOrderForReceipt.value = {
       id: currentOrderId.value, table_name: selectedTable.value.table_name, created_at: new Date().toISOString(), payment_method: paymentMethod.value,
       items: [...activeItems.value], total_amount: netTotal.value, received_amount: finalReceived, change_amount: changeAmount.value,
-      discount: calculatedDiscount.value // เพิ่มส่วนลดให้ใบเสร็จ
+      discount: calculatedDiscount.value
     }
 
     showPaymentModal.value = false
@@ -616,12 +578,10 @@ const submitPayment = async () => {
   }
 }
 
-// 🖨️ 🌟 พิมพ์ใบเสร็จลูกค้า (ดึงข้อมูลร้านค้าครบถ้วน) 🌟
 const printReceipt = () => {
   if (!lastOrderForReceipt.value) return
   const order = lastOrderForReceipt.value
   
-  // ดึงข้อมูลตั้งค่าจาก Database
   const storeName = storeSettings.value.StoreName || 'RM Pro POS'
   const branchName = storeSettings.value.Branch ? `สาขา ${storeSettings.value.Branch}` : ''
   const address = storeSettings.value.Address || ''
@@ -639,7 +599,6 @@ const printReceipt = () => {
     `
   })
 
-  // แสดงส่วนลดในใบเสร็จ
   const discountHtml = order.discount > 0 ? `<div style="display: flex; justify-content: space-between; font-size: 12px; color: #ea580c; margin-bottom: 5px;"><span>ส่วนลด:</span><span>-${Number(order.discount).toLocaleString(undefined, {minimumFractionDigits: 2})}</span></div>` : '';
 
   const html = `
@@ -735,23 +694,21 @@ const setupPosRealtime = () => {
          if (idx !== -1) activeItems.value[idx].kitchen_status = payload.new.kitchen_status
        }
     })
+    // 🌟 เอาการแจ้งเตือนแบบซ้ำซ้อนออก เหลือแค่อัปเดตข้อมูลเงียบๆ 🌟
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'orders', filter: `store_id=eq.${myStoreId.value}` }, payload => {
       if (selectedTable.value && payload.new.table_id === selectedTable.value.id) {
         currentOrderId.value = payload.new.id;
         fetchTableOrder(selectedTable.value.id);
-        Swal.fire({ icon: 'info', title: 'โต๊ะนี้เปิดบิลสั่งอาหารแล้ว!', toast: true, position: 'top', timer: 2000, showConfirmButton: false })
       }
     })
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'order_details', filter: `store_id=eq.${myStoreId.value}` }, async payload => {
        if (currentOrderId.value === payload.new.order_id) {
          fetchTableOrder(selectedTable.value.id)
-         Swal.fire({ icon: 'info', title: 'มีออเดอร์ใหม่จากลูกค้าโต๊ะนี้!', toast: true, position: 'top', timer: 2000, showConfirmButton: false })
        } else if (selectedTable.value && !currentOrderId.value) {
          const { data: orderData } = await supabase.from('orders').select('table_id').eq('id', payload.new.order_id).single()
          if (orderData && orderData.table_id === selectedTable.value.id) {
            currentOrderId.value = payload.new.order_id
            fetchTableOrder(selectedTable.value.id)
-           Swal.fire({ icon: 'info', title: 'มีออเดอร์ใหม่จากลูกค้าโต๊ะนี้!', toast: true, position: 'top', timer: 2000, showConfirmButton: false })
          }
        }
     })
@@ -764,7 +721,6 @@ onMounted(async () => {
   if(savedUser && savedUser.store_id) {
     myStoreId.value = savedUser.store_id
     
-    // ตรวจสอบแพ็กเกจ (Standard vs Pro)
     const { data: storeInfo } = await supabase.from('stores').select('package_type').eq('id', myStoreId.value).single()
     if(storeInfo) isProPlan.value = storeInfo.package_type === 'Pro'
 
@@ -784,3 +740,5 @@ onUnmounted(() => {
   if (posRealtimeChannel) supabase.removeChannel(posRealtimeChannel)
 })
 </script>
+
+<style scoped> .no-scrollbar::-webkit-scrollbar { display: none; } </style>
