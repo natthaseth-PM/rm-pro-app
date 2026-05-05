@@ -52,15 +52,24 @@ const handleLogin = async () => {
   try {
     const hashedPassword = await hashPassword(loginForm.value.password)
     
-    // 1. ลองล็อกอินด้วยรหัสผ่านที่เข้ารหัสแล้ว
-    let { data: user, error } = await supabase.from('users').select('*, stores(*)').eq('username', loginForm.value.username).eq('password', hashedPassword).single()
+    // 🌟 ปรับตรง .select() ให้ระบุความสัมพันธ์ผ่าน store_id ให้ชัดเจน 🌟
+    let { data: user, error } = await supabase
+      .from('users')
+      .select('*, stores:store_id(*)') 
+      .eq('username', loginForm.value.username)
+      .eq('password', hashedPassword)
+      .maybeSingle()
 
-    // 2. 🌟 ระบบ Auto-Migrate: ถ้ารหัสผ่านเข้ารหัสหาไม่เจอ ลองค้นหาด้วยรหัสผ่านแบบเก่า (Plain text)
+    // ระบบ Auto-Migrate สำหรับรหัสผ่านเก่า (Plain Text)
     if (!user) {
-      const { data: fallbackUser } = await supabase.from('users').select('*, stores(*)').eq('username', loginForm.value.username).eq('password', loginForm.value.password).single()
+      const { data: fallbackUser } = await supabase
+        .from('users')
+        .select('*, stores:store_id(*)')
+        .eq('username', loginForm.value.username)
+        .eq('password', loginForm.value.password)
+        .maybeSingle()
       
       if (fallbackUser) {
-        // อัปเดตรหัสผ่านในฐานข้อมูลให้เป็นแบบเข้ารหัส (Hashed)
         await supabase.from('users').update({ password: hashedPassword }).eq('id', fallbackUser.id)
         user = fallbackUser
       }
@@ -72,22 +81,24 @@ const handleLogin = async () => {
       return
     }
 
-    // 🛑 ตรวจสอบสถานะร้านค้า
+    // ตรวจสอบสถานะร้านค้า (ยกเว้น SuperAdmin)
     if (user.role !== 'SuperAdmin') {
-      if (!user.stores) {
-        Swal.fire({ icon: 'error', title: 'บัญชีนี้ไม่ได้เชื่อมโยงกับร้านค้าใดๆ' })
+      // 🌟 ใช้ user.stores เพราะเราตั้งชื่อ alias ไว้ด้านบน 🌟
+      const store = user.stores 
+      if (!store) {
+        Swal.fire({ icon: 'error', title: 'บัญชีนี้ไม่ได้เชื่อมโยงกับร้านค้า' })
         isLoggingIn.value = false
         return
       }
 
-      const expiresAt = new Date(user.stores.expires_at)
-      const now = new Date()
-      
-      if (!user.stores.is_active || expiresAt < now) {
+      const expiresAt = new Date(store.expires_at)
+      if (!store.is_active || expiresAt < new Date()) {
         Swal.fire({
-          icon: 'warning', title: 'แพ็กเกจหมดอายุ / ถูกระงับ',
-          html: '<p class="text-sm font-bold text-gray-600 mt-2">ระบบของคุณหมดอายุหรือถูกระงับการใช้งาน<br>กรุณาติดต่อ <b>คุณสุวรรณ (Suwonp)</b> เพื่อต่ออายุครับ</p>',
-          confirmButtonText: 'รับทราบ', confirmButtonColor: '#f97316'
+          icon: 'warning',
+          title: 'แพ็กเกจหมดอายุ / ถูกระงับ',
+          html: '<p class="text-sm font-bold text-gray-600 mt-2">ระบบของคุณหมดอายุหรือถูกระงับการใช้งาน<br>กรุณาติดต่อ <b>คุณสุวรรณ (Suwonp)</b></p>',
+          confirmButtonText: 'รับทราบ',
+          confirmButtonColor: '#f97316'
         })
         isLoggingIn.value = false
         return
@@ -101,6 +112,7 @@ const handleLogin = async () => {
     else router.push('/dashboard') 
 
   } catch (err) {
+    console.error("Login Error:", err)
     Swal.fire({ icon: 'error', title: 'ไม่สามารถเชื่อมต่อระบบได้' })
   } finally {
     isLoggingIn.value = false
