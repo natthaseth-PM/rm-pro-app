@@ -39,6 +39,10 @@
             t.status === 'Available' ? 'border-emerald-100 shadow-sm hover:border-emerald-400' : 'border-orange-200 bg-orange-50/30 shadow-md hover:border-orange-400'
           ]">
           
+          <div v-if="t.service_request" @click.stop="clearService(t.id)" class="absolute -top-3 -left-3 bg-red-500 text-white px-3 py-1.5 rounded-full font-black text-xs shadow-lg animate-bounce z-20 flex items-center gap-1 cursor-pointer border-2 border-white" title="คลิกเพื่อเคลียร์แจ้งเตือน">
+            <i class="fa-solid fa-bell"></i> {{ t.service_request }}
+          </div>
+
           <div v-if="t.status !== 'Available'" class="absolute -top-3 -right-3 w-8 h-8 bg-orange-500 text-white rounded-full flex items-center justify-center shadow-md border-2 border-white z-10">
             <i class="fa-solid fa-receipt text-xs"></i>
           </div>
@@ -67,10 +71,6 @@
             <span class="font-black text-gray-900 text-lg leading-none mt-1">฿{{ t.total_amount ? t.total_amount.toLocaleString() : '0' }}</span>
           </div>
 
-          <div v-if="t.service_request" @click.stop="clearService(t.id)" class="absolute -top-3 -left-3 bg-red-500 text-white px-3 py-1.5 rounded-full font-black text-xs shadow-lg animate-bounce z-20 flex items-center gap-1 cursor-pointer border-2 border-white" title="คลิกเพื่อเคลียร์แจ้งเตือน">
-            <i class="fa-solid fa-bell"></i> {{ t.service_request }}
-          </div>
-
         </button>
 
       </div>
@@ -87,24 +87,27 @@ const router = useRouter()
 const tables = ref([])
 const activeOrders = ref([])
 const isLoading = ref(true)
+const myStoreId = ref(null) // 🌟 เก็บ ID ร้านค้า
 let realtimeChannel = null
 
 const fetchData = async () => {
-  const { data: tData } = await supabase.from('tables').select('*').order('table_name')
+  if (!myStoreId.value) return
+
+  // 🌟 ดึงข้อมูลเฉพาะร้านตัวเอง
+  const { data: tData } = await supabase.from('tables').select('*').eq('store_id', myStoreId.value).order('table_name')
   if (tData) tables.value = tData
 
-  const { data: oData } = await supabase.from('orders').select('*').eq('status', 'Open')
+  const { data: oData } = await supabase.from('orders').select('*').eq('store_id', myStoreId.value).eq('status', 'Open')
   if (oData) activeOrders.value = oData
 
   isLoading.value = false
 }
 
-// 🌟 Double Check: ถ้ามีบิล Open อยู่ บังคับให้โต๊ะเป็น Occupied ทันที
 const mergedTables = computed(() => {
   return tables.value.map(table => {
     const order = activeOrders.value.find(o => o.table_id === table.id)
     const actualStatus = order ? 'Occupied' : 'Available' 
-    return { ...table, status: actualStatus, total_amount: order ? order.total_amount : 0, order_mode: order ? order.order_mode : '' }
+    return { ...table, status: actualStatus, total_amount: order ? order.total_amount : 0 }
   })
 })
 
@@ -115,21 +118,26 @@ const selectTable = (table) => {
   router.push({ path: '/pos', query: { table_id: table.id } })
 }
 
-const setupRealtime = () => {
-  realtimeChannel = supabase.channel('table_layout_updates')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'tables' }, () => fetchData())
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => fetchData())
-    .subscribe()
-}
-
+// 🌟 เคลียร์การแจ้งเตือนพนักงาน
 const clearService = async (id) => {
   await supabase.from('tables').update({ service_request: null }).eq('id', id)
   fetchData()
 }
 
+const setupRealtime = () => {
+  realtimeChannel = supabase.channel(`tables_updates_${myStoreId.value}`)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'tables', filter: `store_id=eq.${myStoreId.value}` }, () => fetchData())
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'orders', filter: `store_id=eq.${myStoreId.value}` }, () => fetchData())
+    .subscribe()
+}
+
 onMounted(() => {
-  fetchData()
-  setupRealtime()
+  const savedUser = JSON.parse(localStorage.getItem('rmpro_user'))
+  if(savedUser && savedUser.store_id) {
+    myStoreId.value = savedUser.store_id
+    fetchData()
+    setupRealtime()
+  }
 })
 
 onUnmounted(() => {
@@ -140,4 +148,3 @@ onUnmounted(() => {
 <style scoped>
 .no-scrollbar::-webkit-scrollbar { display: none; }
 </style>
-

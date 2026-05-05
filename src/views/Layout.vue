@@ -2,7 +2,6 @@
   <div class="flex h-screen w-full bg-gray-50 overflow-hidden font-sans">
     
     <aside :class="['bg-dark text-white flex flex-col transition-all duration-300 shadow-xl z-20 shrink-0 relative', isCollapsed ? 'w-20' : 'w-20 lg:w-64']">
-      
       <button @click="isCollapsed = !isCollapsed" class="hidden lg:flex absolute -right-3 top-8 bg-primary text-white w-6 h-6 rounded-full items-center justify-center shadow-md z-[100] hover:scale-110 transition-transform">
         <i class="fa-solid text-[10px]" :class="isCollapsed ? 'fa-chevron-right' : 'fa-chevron-left'"></i>
       </button>
@@ -32,7 +31,7 @@
           <div class="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center text-sm font-bold uppercase shrink-0">{{ user?.username?.charAt(0) || 'U' }}</div>
           <div :class="['ml-3 text-sm truncate', isCollapsed ? 'hidden' : 'hidden lg:block']">
             <p class="font-bold text-white capitalize">{{ user?.username || 'Guest' }}</p>
-            <p class="text-primary text-xs font-bold">{{ user?.role || 'Unknown' }}</p>
+            <p class="text-primary text-[10px] font-black uppercase tracking-wider">{{ storeInfo?.package_type || 'STANDARD' }} PLAN</p>
           </div>
         </div>
         <button @click="handleLogout" :class="['w-8 h-8 rounded-lg bg-gray-800 hover:bg-red-500 hover:text-white items-center justify-center text-gray-400 transition-colors shrink-0', isCollapsed ? 'hidden' : 'hidden lg:flex']" title="ออกจากระบบ"><i class="fa-solid fa-power-off"></i></button>
@@ -49,36 +48,37 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { supabase } from '../supabase'
 import Swal from 'sweetalert2'
 
 const router = useRouter()
 const user = ref(null)
-const isCollapsed = ref(false) // 🌟 ตัวแปรเก็บสถานะการย่อเมนู
+const storeInfo = ref(null)
+const isCollapsed = ref(false)
 
 const menuItems = [
   { path: '/dashboard', title: 'Dashboard', icon: 'fa-solid fa-chart-pie', permission: 'dashboard' },
   { path: '/pos', title: 'POS (รับออเดอร์)', icon: 'fa-solid fa-cash-register', permission: 'pos' },
   { path: '/tables', title: 'ผังโต๊ะรวม', icon: 'fa-solid fa-border-all', permission: 'tables' },
-  { path: '/kitchen', title: 'ห้องครัว', icon: 'fa-solid fa-fire-burner', permission: 'kitchen' },
+  { path: '/kitchen', title: 'ห้องครัว (KDS)', icon: 'fa-solid fa-fire-burner', permission: 'kitchen' },
   { path: '/history', title: 'ประวัติบิล', icon: 'fa-solid fa-clock-rotate-left', permission: 'history' },
   { path: '/reports', title: 'รายงาน', icon: 'fa-solid fa-chart-line', permission: 'reports' },
   { path: '/settings', title: 'ตั้งค่าระบบ', icon: 'fa-solid fa-cogs', permission: 'settings' },
 ]
 
-const storeInfo = ref(null)
-
 onMounted(async () => {
   const savedUser = localStorage.getItem('rmpro_user')
   if (savedUser) {
     user.value = JSON.parse(savedUser)
-    // โหลดข้อมูลร้านเพื่อดูแพ็กเกจ
+    // 🌟 ดึงข้อมูลร้านค้าจากฐานข้อมูล
     const { data } = await supabase.from('stores').select('*').eq('id', user.value.store_id).single()
-    storeInfo.value = data
+    if (data) storeInfo.value = data
   } else {
     router.push('/login')
   }
 })
 
+// 🌟 ฟังก์ชันเช็คการมองเห็นเมนู
 const hasAccess = (permission) => {
   if (!user.value || !storeInfo.value) return false
   

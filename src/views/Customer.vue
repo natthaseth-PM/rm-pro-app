@@ -13,18 +13,14 @@
     </header>
 
     <main class="flex-1 overflow-hidden relative bg-gray-50">
-      
       <section v-show="currentTab === 'menu'" class="h-full flex flex-col animate-[fadeIn_0.3s_ease-out]">
-        
         <div class="px-5 py-4 flex gap-2 overflow-x-auto no-scrollbar shrink-0 bg-gray-50">
           <button v-for="cat in availableCategories" :key="cat" @click="selectedCategory = cat" :class="['px-5 py-2 rounded-full font-bold text-xs whitespace-nowrap transition-colors border shadow-sm', selectedCategory === cat ? 'bg-primary text-white border-primary' : 'bg-white text-gray-600 border-gray-200 hover:border-primary']">{{ cat }}</button>
         </div>
-
         <div class="flex-1 overflow-y-auto px-5 pb-48">
           <div v-if="isLoading" class="flex flex-col items-center justify-center py-20 text-primary">
             <i class="fa-solid fa-circle-notch fa-spin text-5xl mb-4"></i><p class="font-black tracking-widest text-gray-400 uppercase">กำลังโหลดเมนู...</p>
           </div>
-          
           <div v-else class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             <div v-for="item in filteredMenus" :key="item.id" class="bg-white rounded-[1.5rem] shadow-sm border border-gray-100 overflow-hidden flex flex-col relative group">
               <div class="aspect-square bg-gray-100 relative overflow-hidden">
@@ -136,6 +132,9 @@ import Swal from 'sweetalert2'
 const route = useRoute()
 const Toast = Swal.mixin({ toast: true, position: 'top', showConfirmButton: false, timer: 3000, timerProgressBar: true })
 
+// 🌟 ตัวแปรเก็บ ID ของร้านค้านั้นๆ 🌟
+const myStoreId = ref(null)
+
 const tableId = ref(null)
 const tableName = ref('')
 const storeSettings = ref({})
@@ -161,7 +160,8 @@ const loadInitialData = async () => {
   tableName.value = route.query.table_name || 'ลูกค้าสั่งเอง'
   const token = route.query.token
 
-  const { data: tableData } = await supabase.from('tables').select('session_token, status').eq('id', tableId.value).single()
+  // 🌟 ดึงข้อมูล store_id ออกมาด้วย เพื่อให้บันทึกบิลเข้าถูกร้าน
+  const { data: tableData } = await supabase.from('tables').select('session_token, status, store_id').eq('id', tableId.value).single()
   
   if (!tableData || tableData.session_token !== token || tableData.status === 'Available') {
     Swal.fire({ icon: 'error', title: 'QR Code หมดอายุ หรือโต๊ะยังไม่เปิด', text: 'กรุณาแจ้งพนักงานเพื่อเปิดโต๊ะหรือขอ QR Code ใหม่อีกครั้งครับ', confirmButtonColor: '#f97316', allowOutsideClick: false, showConfirmButton: false })
@@ -169,7 +169,9 @@ const loadInitialData = async () => {
     return
   }
 
-  const { data: sData } = await supabase.from('settings').select('*')
+  myStoreId.value = tableData.store_id // บันทึก store_id
+
+  const { data: sData } = await supabase.from('settings').select('*').eq('store_id', myStoreId.value)
   if (sData) storeSettings.value = Object.fromEntries(sData.map(item => [item.setting_key, item.setting_value]))
 
   fetchMenus()
@@ -178,7 +180,7 @@ const loadInitialData = async () => {
 
 const fetchMenus = async () => {
   isLoading.value = true
-  const { data } = await supabase.from('menus').select('*').eq('status', 'Available')
+  const { data } = await supabase.from('menus').select('*').eq('store_id', myStoreId.value).eq('status', 'Available')
   if (data) {
     menus.value = data
     if (availableCategories.value.length > 0) selectedCategory.value = availableCategories.value[0] 
@@ -205,9 +207,7 @@ const setupRealtime = () => {
            text: 'ขอบคุณที่ใช้บริการครับ โอกาสหน้าเชิญใหม่นะครับ 🙏',
            confirmButtonColor: '#10b981',
            allowOutsideClick: false
-         }).then(() => {
-           window.location.href = '/customer'
-         })
+         }).then(() => { window.location.href = '/customer' })
        }
     })
     .subscribe()
@@ -236,13 +236,14 @@ const submitOrder = async () => {
       orderId = activeOrder.id
       await supabase.from('orders').update({ total_amount: Number(activeOrder.total_amount) + cartTotal.value }).eq('id', orderId)
     } else {
-      const { data: newOrder, error: insertError } = await supabase.from('orders').insert({ table_id: tableId.value, total_amount: cartTotal.value, status: 'Open' }).select().single()
+      // 🌟 บันทึก store_id เข้าไปด้วยทุกครั้ง
+      const { data: newOrder, error: insertError } = await supabase.from('orders').insert({ store_id: myStoreId.value, table_id: tableId.value, total_amount: cartTotal.value, status: 'Open' }).select().single()
       if (insertError) throw insertError
       orderId = newOrder.id
       await supabase.from('tables').update({ status: 'Occupied' }).eq('id', tableId.value)
     }
 
-    const details = cart.value.map(item => ({ order_id: orderId, menu_id: item.id, menu_name: item.menu_name, price: item.price, quantity: item.qty, total_price: item.price * item.qty, kitchen_status: 'Pending' }))
+    const details = cart.value.map(item => ({ store_id: myStoreId.value, order_id: orderId, menu_id: item.id, menu_name: item.menu_name, price: item.price, quantity: item.qty, total_price: item.price * item.qty, kitchen_status: 'Pending' }))
     const { error: detailsError } = await supabase.from('order_details').insert(details)
     if (detailsError) throw detailsError
     

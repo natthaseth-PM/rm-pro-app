@@ -128,20 +128,17 @@ import { supabase } from '../supabase'
 import Chart from 'chart.js/auto'
 import Swal from 'sweetalert2'
 
-// ตั้งค่าฟอนต์มาตรฐานให้กราฟทั้งหมด
 Chart.defaults.font.family = "'Kanit', sans-serif"
 
-// DOM Elements สำหรับวาดกราฟ
+const myStoreId = ref(null) // 🌟 เก็บ ID ร้านค้า
 const revenueCanvas = ref(null)
 const paymentCanvas = ref(null)
 const peakCanvas = ref(null)
 
-// ตัวแปรเก็บกราฟ (เอาไว้ทำลายทิ้งเวลาวาดใหม่)
 let myRevenueChart = null
 let myPaymentChart = null
 let myPeakChart = null
 
-// State
 const isDashLoading = ref(true)
 const chartMode = ref('daily')
 const selectedYear = ref(new Date().getFullYear().toString())
@@ -154,21 +151,20 @@ const dashStats = ref({
   hourlyStats: { "All": {} }, daily: {}, monthly: {}, years: []
 })
 
-// จับตาดูการเปลี่ยนโหมด แล้ววาดกราฟใหม่
 watch([chartMode, selectedYear, peakDayFilter], () => {
   nextTick(() => renderCharts())
 })
 
-// 📡 ประมวลผลข้อมูล Data อัจฉริยะ 
 const loadDashboard = async () => {
+  if (!myStoreId.value) return;
   isDashLoading.value = true
+
   try {
     const today = new Date()
     const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate())
     const startOfYesterday = new Date(startOfToday)
     startOfYesterday.setDate(startOfYesterday.getDate() - 1)
 
-    // รีเซ็ตค่า
     let stats = {
       totalRevenue: 0, todayRevenue: 0, yesterdayRevenue: 0,
       totalBills: 0, todayBills: 0,
@@ -178,11 +174,10 @@ const loadDashboard = async () => {
 
     const paidOrderIds = []
 
-    // 1. ดึงบิลที่จ่ายแล้วทั้งหมด
-    const { data: ordersData, error: ordersError } = await supabase.from('orders').select('*').eq('status', 'Paid')
+    // 🌟 ดึงข้อมูลเฉพาะร้านเราเท่านั้น
+    const { data: ordersData, error: ordersError } = await supabase.from('orders').select('*').eq('store_id', myStoreId.value).eq('status', 'Paid')
     if (ordersError) throw ordersError
 
-    // คำนวณภาพรวม และเตรียม Data กราฟ
     ordersData.forEach(o => {
       const date = new Date(o.created_at)
       const amt = Number(o.total_amount) || 0
@@ -191,30 +186,25 @@ const loadDashboard = async () => {
       stats.totalBills++
       paidOrderIds.push(o.id)
 
-      // คำนวณยอดวันนี้/เมื่อวาน
       if (date >= startOfToday) { 
         stats.todayRevenue += amt; stats.todayBills++ 
       } else if (date >= startOfYesterday && date < startOfToday) { 
         stats.yesterdayRevenue += amt 
       }
 
-      // สัดส่วนช่องทาง
       if (o.payment_method === 'Cash') stats.paymentStats.Cash += amt
       else stats.paymentStats.QR += amt
 
-      // จัดกลุ่มรายวัน (Daily) - YYYY-MM-DD
       const dateStr = `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`
       stats.daily[dateStr] = (stats.daily[dateStr] || 0) + amt
 
-      // จัดกลุ่มรายเดือน (Monthly) - YYYY -> MM
       const yearStr = String(date.getFullYear())
       const monthStr = String(date.getMonth()+1).padStart(2,'0')
       stats.years.add(yearStr)
       if (!stats.monthly[yearStr]) stats.monthly[yearStr] = {}
       stats.monthly[yearStr][monthStr] = (stats.monthly[yearStr][monthStr] || 0) + amt
 
-      // จัดกลุ่มเวลาทอง (Hourly)
-      const dayOfWeek = String(date.getDay()) // 0=Sun, 1=Mon...
+      const dayOfWeek = String(date.getDay()) 
       const hour = String(date.getHours()).padStart(2,'0')
       
       stats.hourlyStats['All'][hour] = (stats.hourlyStats['All'][hour] || 0) + 1
@@ -222,22 +212,19 @@ const loadDashboard = async () => {
       stats.hourlyStats[dayOfWeek][hour] = (stats.hourlyStats[dayOfWeek][hour] || 0) + 1
     })
 
-    // คำนวณ AOV & Growth %
     stats.todayAOV = stats.todayBills > 0 ? (stats.todayRevenue / stats.todayBills) : 0
     stats.growthPercent = stats.yesterdayRevenue > 0 
       ? ((stats.todayRevenue - stats.yesterdayRevenue) / stats.yesterdayRevenue) * 100 
       : (stats.todayRevenue > 0 ? 100 : 0)
 
-    // แปลง Set เป็น Array เรียงปี
     stats.years = Array.from(stats.years).sort((a,b) => b - a)
     if (!stats.years.includes(selectedYear.value) && stats.years.length > 0) {
       selectedYear.value = stats.years[0]
     }
 
-    // 2. ดึง Order Details เฉพาะบิลที่ Paid เพื่อหา 5 อันดับแรก
     let topMenus = []
     if (paidOrderIds.length > 0) {
-      const { data: detailsData } = await supabase.from('order_details').select('*').in('order_id', paidOrderIds).neq('kitchen_status', 'Cancelled')
+      const { data: detailsData } = await supabase.from('order_details').select('*').in('order_id', paidOrderIds).neq('kitchen_status', 'Cancelled').eq('store_id', myStoreId.value)
       
       const menuMap = {}
       if(detailsData) {
@@ -247,13 +234,12 @@ const loadDashboard = async () => {
           menuMap[item.menu_name].revenue += Number(item.total_price)
         })
       }
-      topMenus = Object.values(menuMap).sort((a, b) => b.qty - a.qty).slice(0, 5) // เอาแค่ Top 5
+      topMenus = Object.values(menuMap).sort((a, b) => b.qty - a.qty).slice(0, 5) 
     }
 
     stats.topMenus = topMenus
     dashStats.value = stats
 
-    // วาดกราฟ
     nextTick(() => renderCharts())
 
   } catch (err) {
@@ -263,7 +249,6 @@ const loadDashboard = async () => {
   }
 }
 
-// 🎨 ฟังก์ชันวาดกราฟ Chart.js สุดพรีเมียม
 const renderCharts = () => {
   if (myRevenueChart) myRevenueChart.destroy()
   if (myPaymentChart) myPaymentChart.destroy()
@@ -275,7 +260,6 @@ const renderCharts = () => {
 
   if (!ctxRev || !ctxPay || !ctxPeak) return
 
-  // 📈 กราฟแนวโน้มยอดขาย (Line Chart)
   let labelsRev = [], dataRev = []
   if (chartMode.value === 'daily') {
     for (let i = 13; i >= 0; i--) {
@@ -297,31 +281,16 @@ const renderCharts = () => {
 
   myRevenueChart = new Chart(ctxRev, {
     type: 'line',
-    data: { 
-      labels: labelsRev, 
-      datasets: [{ data: dataRev, borderColor: '#3b82f6', backgroundColor: gradRev, borderWidth: 3, fill: true, tension: 0.4, pointRadius: 3, pointHoverRadius: 6 }] 
-    },
-    options: { 
-      responsive: true, maintainAspectRatio: false, 
-      plugins: { legend: { display: false }, tooltip: { backgroundColor: 'rgba(31,41,55,0.9)', padding: 12, cornerRadius: 8, callbacks: { label: (ctx) => ' ฿' + ctx.parsed.y.toLocaleString() } } },
-      scales: { y: { beginAtZero: true, grid: { borderDash: [4, 4], color: '#f3f4f6' }, border: { display: false } }, x: { grid: { display: false }, border: { display: false } } }
-    }
+    data: { labels: labelsRev, datasets: [{ data: dataRev, borderColor: '#3b82f6', backgroundColor: gradRev, borderWidth: 3, fill: true, tension: 0.4, pointRadius: 3, pointHoverRadius: 6 }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { backgroundColor: 'rgba(31,41,55,0.9)', padding: 12, cornerRadius: 8, callbacks: { label: (ctx) => ' ฿' + ctx.parsed.y.toLocaleString() } } }, scales: { y: { beginAtZero: true, grid: { borderDash: [4, 4], color: '#f3f4f6' }, border: { display: false } }, x: { grid: { display: false }, border: { display: false } } } }
   })
 
-  // 🍩 กราฟช่องทางชำระเงิน (Doughnut Chart)
   myPaymentChart = new Chart(ctxPay, {
     type: 'doughnut',
-    data: { 
-      labels: ['เงินสด (Cash)', 'โอนเงิน (QR)'], 
-      datasets: [{ data: [dashStats.value.paymentStats.Cash || 0, dashStats.value.paymentStats.QR || 0], backgroundColor: ['#22c55e', '#a855f7'], borderWidth: 0, hoverOffset: 5 }] 
-    },
-    options: { 
-      responsive: true, maintainAspectRatio: false, cutout: '75%', 
-      plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, padding: 20 } }, tooltip: { backgroundColor: 'rgba(31,41,55,0.9)', callbacks: { label: (ctx) => ' ฿' + ctx.parsed.toLocaleString() } } }
-    }
+    data: { labels: ['เงินสด (Cash)', 'โอนเงิน (QR)'], datasets: [{ data: [dashStats.value.paymentStats.Cash || 0, dashStats.value.paymentStats.QR || 0], backgroundColor: ['#22c55e', '#a855f7'], borderWidth: 0, hoverOffset: 5 }] },
+    options: { responsive: true, maintainAspectRatio: false, cutout: '75%', plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, padding: 20 } }, tooltip: { backgroundColor: 'rgba(31,41,55,0.9)', callbacks: { label: (ctx) => ' ฿' + ctx.parsed.toLocaleString() } } } }
   })
 
-  // 📊 กราฟแท่งช่วงเวลาทอง (Bar Chart)
   let labelsPeak = [], dataPeak = []
   let selectedHourlyStats = dashStats.value.hourlyStats[peakDayFilter.value] || {}
   
@@ -337,20 +306,17 @@ const renderCharts = () => {
 
   myPeakChart = new Chart(ctxPeak, {
     type: 'bar',
-    data: { 
-      labels: labelsPeak, 
-      datasets: [{ data: dataPeak, backgroundColor: gradPeak, borderRadius: { topLeft: 6, topRight: 6 } }] 
-    },
-    options: { 
-      responsive: true, maintainAspectRatio: false, 
-      plugins: { legend: { display: false }, tooltip: { backgroundColor: 'rgba(31,41,55,0.9)', padding: 12, callbacks: { title: (ctx) => 'เวลา: ' + ctx[0].label, label: (ctx) => ctx.parsed.y + ' บิล' } } },
-      scales: { y: { beginAtZero: true, ticks: { stepSize: 1 }, grid: { borderDash: [4, 4], color: '#f3f4f6' }, border: { display: false } }, x: { grid: { display: false }, border: { display: false }, ticks: { maxRotation: 45, minRotation: 45, font: { size: 10 } } } }
-    }
+    data: { labels: labelsPeak, datasets: [{ data: dataPeak, backgroundColor: gradPeak, borderRadius: { topLeft: 6, topRight: 6 } }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { backgroundColor: 'rgba(31,41,55,0.9)', padding: 12, callbacks: { title: (ctx) => 'เวลา: ' + ctx[0].label, label: (ctx) => ctx.parsed.y + ' บิล' } } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 }, grid: { borderDash: [4, 4], color: '#f3f4f6' }, border: { display: false } }, x: { grid: { display: false }, border: { display: false }, ticks: { maxRotation: 45, minRotation: 45, font: { size: 10 } } } } }
   })
 }
 
 onMounted(() => {
-  loadDashboard()
+  const savedUser = JSON.parse(localStorage.getItem('rmpro_user'))
+  if (savedUser && savedUser.store_id) {
+    myStoreId.value = savedUser.store_id
+    loadDashboard()
+  }
 })
 </script>
 

@@ -4,7 +4,6 @@ import App from './App.vue'
 import { createRouter, createWebHistory } from 'vue-router'
 import { supabase } from './supabase'
 
-// นำเข้า Component หน้าต่างๆ
 import Login from './views/Login.vue'
 import Layout from './views/Layout.vue'
 import Pos from './views/Pos.vue'
@@ -16,7 +15,6 @@ import Reports from './views/Reports.vue'
 import Dashboard from './views/Dashboard.vue'
 import Settings from './views/Settings.vue'
 
-// กำหนดเส้นทาง (Routes)
 const routes = [
   { path: '/login', name: 'Login', component: Login },
   { path: '/customer', name: 'Customer', component: Customer },
@@ -34,8 +32,6 @@ const routes = [
       { path: 'settings', name: 'Settings', component: Settings },
     ]
   },
-  // 🌟 ดักจับ URL ที่ไม่มีอยู่จริง (404 Catch-all) 🌟
-  // ถ้าพิมพ์ URL ผิด ให้เด้งกลับไปที่ Root ('/') ซึ่งเดี๋ยว Route Guard จะเตะไปหน้าที่มีสิทธิ์เอง
   { path: '/:pathMatch(.*)*', redirect: '/' }
 ]
 
@@ -44,55 +40,47 @@ const router = createRouter({
   routes
 })
 
-
 router.beforeEach(async (to, from, next) => {
   const savedUser = localStorage.getItem('rmpro_user')
   const user = savedUser ? JSON.parse(savedUser) : null
 
-  // 1. หน้าสาธารณะ
   if (to.path === '/login' || to.path === '/customer') return next()
+  if (!user || !user.store_id) return next('/login')
 
-  // 2. ตรวจสอบการ Login
-  if (!user) return next('/login')
-
-  // 3. ตรวจสอบแพ็กเกจและวันหมดอายุ (ดึงสดจาก Supabase เพื่อความชัวร์)
-  const { data: store } = await supabase
-    .from('stores')
-    .select('*')
-    .eq('id', user.store_id)
-    .single()
-
-  if (!store || store.subscription_status === 'Expired' || new Date(store.expires_at) < new Date()) {
-    // ถ้าหมดอายุ ให้แสดงแจ้งเตือน (หรือ redirect ไปหน้าชำระเงิน)
-    if (to.path !== '/expired') {
-      alert('ขออภัย แพ็กเกจของคุณหมดอายุแล้ว กรุณาติดต่อผู้ดูแลระบบ')
-      return next(false) 
-    }
-  }
-
-  // 4. ตรวจสอบสิทธิ์การเข้าถึงหน้า (Permissions) และสิทธิ์ตามแพ็กเกจ (Package Features)
+  // 🌟 ดึงข้อมูลร้านค้า เพื่อตรวจสอบวันหมดอายุ และแพ็กเกจ 🌟
+  const { data: store } = await supabase.from('stores').select('*').eq('id', user.store_id).single()
+  
   if (to.path !== '/login' && to.path !== '/customer') {
+    // 1. 🛑 ตรวจสอบวันหมดอายุ (15 วัน Trial หรือ Expired)
+    if (!store || store.subscription_status === 'Expired' || new Date(store.expires_at) < new Date()) {
+      alert('ขออภัย แพ็กเกจของร้านคุณหมดอายุแล้ว กรุณาติดต่อแอดมินเพื่อต่ออายุครับ')
+      localStorage.removeItem('rmpro_user')
+      return next('/login')
+    }
+
+    // 2. 🛑 ตรวจสอบสิทธิ์ (Permissions) และแพ็กเกจ (Package)
     const pageName = to.path.split('/')[1] || 'dashboard'
     const allowedPages = user.allowed_pages ? user.allowed_pages.split(',') : []
     
-    // กำหนดหน้าเฉพาะของแพ็กเกจ Pro
-    const proPages = ['kitchen', 'reports'] 
-    const isProFeature = proPages.includes(pageName)
-
-    // เงื่อนไข: ต้องมีสิทธิ์ใน User AND (ถ้าเป็นฟีเจอร์ Pro ร้านต้องเป็น Pro)
+    // ตั้งค่าว่าหน้าไหนเป็นของแพ็กเกจ Pro บ้าง
+    const proFeatures = ['kitchen', 'reports']
+    const isProPage = proFeatures.includes(pageName)
+    const hasPackageRight = isProPage ? store.package_type === 'Pro' : true
     const hasUserRight = allowedPages.includes(pageName)
-    const hasPackageRight = isProFeature ? store.package_type === 'Pro' : true
-
+    
+    // ถ้าพนักงานไม่มีสิทธิ์ หรือ ร้านไม่ได้ซื้อแพ็กเกจ Pro ไว้
     if (!hasUserRight || !hasPackageRight) {
-      // บันทึก Log การพยายามเข้าถึง
-      await supabase.from('security_logs').insert([{
-        username: user.username,
-        store_id: user.store_id,
-        attempted_url: to.path,
-        action: !hasPackageRight ? 'พยายามใช้ฟีเจอร์ Pro ในแพ็กเกจ Standard' : 'ไม่มีสิทธิ์เข้าถึง'
-      }])
-      
-      return next('/' + (allowedPages[0] || 'dashboard'))
+      try {
+        await supabase.from('security_logs').insert([{
+          store_id: user.store_id,
+          username: user.username,
+          attempted_url: to.path,
+          action: !hasPackageRight ? `ร้าน Standard พยายามเข้า ${pageName}` : 'พยายามเข้าถึงหน้าที่ไม่มีสิทธิ์'
+        }])
+      } catch (err) {}
+
+      if (from.path && from.path !== '/' && from.path !== '/login') return next(false) 
+      else return next('/' + (allowedPages[0] || 'dashboard'))
     }
   }
 

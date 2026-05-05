@@ -46,7 +46,8 @@
             </div>
             <i class="fa-solid fa-chevron-right text-gray-300 group-hover:text-primary"></i>
           </button>
-          <button @click="generateQR" :disabled="!selectedTable" class="w-16 bg-white border-2 border-dashed border-blue-200 hover:border-blue-500 text-blue-500 disabled:opacity-50 disabled:bg-gray-50 rounded-2xl flex flex-col items-center justify-center transition-all active:scale-95 shrink-0">
+          
+          <button @click="generateQR" :disabled="!selectedTable || !isProPlan" class="w-16 bg-white border-2 border-dashed border-blue-200 hover:border-blue-500 text-blue-500 disabled:opacity-50 disabled:bg-gray-50 rounded-2xl flex flex-col items-center justify-center transition-all active:scale-95 shrink-0" :title="isProPlan ? 'QR โต๊ะ' : 'เฉพาะแพ็กเกจ Pro ขึ้นไป'">
             <i class="fa-solid fa-qrcode text-lg mb-1"></i>
             <span class="text-[9px] font-black uppercase">QR โต๊ะ</span>
           </button>
@@ -223,11 +224,9 @@
 
     <div v-if="showSuccessModal" class="absolute inset-0 bg-[#40434e]/80 backdrop-blur-md z-[200] flex items-center justify-center p-4 animate-[fadeIn_0.2s_ease-out]">
       <div class="bg-white rounded-[2.5rem] p-8 w-full max-w-[400px] flex flex-col items-center shadow-2xl">
-        
         <div class="w-24 h-24 bg-[#d1fae5] text-[#22c55e] rounded-full flex items-center justify-center text-5xl mb-5 shadow-inner">
           <i class="fa-solid fa-check"></i>
         </div>
-        
         <h2 class="text-3xl font-black text-[#1a1a2e] mb-1 tracking-tight">ปิดบิลสำเร็จ!</h2>
         <p class="text-sm font-bold text-gray-500 mb-6 text-center">บันทึกข้อมูลและอัปเดตสถานะโต๊ะเรียบร้อยแล้ว</p>
         
@@ -307,7 +306,10 @@ import Swal from 'sweetalert2'
 const route = useRoute()   
 const router = useRouter() 
 
-// State ทั่วไป
+// 🌟 ตัวแปรเก็บ Session ของร้านค้า (SaaS)
+const myStoreId = ref(null)
+const isProPlan = ref(false)
+
 const menus = ref([])
 const tables = ref([])
 const cart = ref([])
@@ -336,7 +338,7 @@ const successChangeAmount = ref(0)
 const lastOrderForReceipt = ref(null) 
 
 // 🌟 ตัวแปรเก็บ Real-time channel ของ POS (ป้องกันการประกาศซ้ำ)
-const posRealtimeChannel = ref(null)
+let posRealtimeChannel = null
 
 // Computed Categories & Menus
 const availableCategories = computed(() => [...new Set(menus.value.map(item => item.category))])
@@ -373,6 +375,7 @@ const promptPayImage = computed(() => {
   return `https://promptpay.io/${ppId}/${netTotal.value}.png`
 })
 
+// Computed สำหรับปรับขนาดโต๊ะอัตโนมัติ
 const tableCardSize = computed(() => {
   const count = tables.value.length
   if (count <= 6) return 280
@@ -389,17 +392,13 @@ watch(memberInfo, () => { usePointsAmount.value = 0 })
 
 // 📡 Load Data
 const loadSettings = async () => {
-  const { data } = await supabase.from('settings').select('*')
+  const { data } = await supabase.from('settings').select('*').eq('store_id', myStoreId.value)
   if (data) storeSettings.value = Object.fromEntries(data.map(item => [item.setting_key, item.setting_value]))
 }
 
 const loadMenus = async () => {
   isLoadingMenus.value = true
-  const { data } = await supabase
-    .from('menus')
-    .select('*')
-    .eq('store_id', user.value.store_id) // 🌟 บังคับดึงเฉพาะร้านตัวเอง
-    .eq('status', 'Available')
+  const { data } = await supabase.from('menus').select('*').eq('store_id', myStoreId.value).eq('status', 'Available')
   if (data) {
     menus.value = data
     if (availableCategories.value.length > 0) selectedCategory.value = availableCategories.value[0]
@@ -409,8 +408,8 @@ const loadMenus = async () => {
 
 const loadTables = async () => {
   isLoadingTables.value = true
-  const { data: tData } = await supabase.from('tables').select('*').order('table_name')
-  const { data: oData } = await supabase.from('orders').select('table_id').eq('status', 'Open')
+  const { data: tData } = await supabase.from('tables').select('*').eq('store_id', myStoreId.value).order('table_name')
+  const { data: oData } = await supabase.from('orders').select('table_id').eq('store_id', myStoreId.value).eq('status', 'Open')
   
   if (tData) {
     tables.value = tData.map(t => {
@@ -424,7 +423,7 @@ const loadTables = async () => {
 const fetchTableOrder = async (tableId) => {
   activeItems.value = []
   currentOrderId.value = null
-  const { data: order } = await supabase.from('orders').select('*').eq('table_id', tableId).eq('status', 'Open').maybeSingle()
+  const { data: order } = await supabase.from('orders').select('*').eq('store_id', myStoreId.value).eq('table_id', tableId).eq('status', 'Open').maybeSingle()
   if (order) {
     currentOrderId.value = order.id
     const { data: items } = await supabase.from('order_details').select('*').eq('order_id', order.id).neq('kitchen_status', 'Cancelled').neq('kitchen_status', 'Voided')
@@ -432,6 +431,7 @@ const fetchTableOrder = async (tableId) => {
   }
 }
 
+// Logic ทั่วไป
 const addToCart = (item) => {
   if(!selectedTable.value) return Swal.fire({ icon: 'warning', title: 'เลือกโต๊ะก่อนสั่งนะครับ', toast: true, position: 'top', timer: 2000, showConfirmButton: false })
   const existing = cart.value.find(c => c.id === item.id)
@@ -447,6 +447,7 @@ const updateQty = (index, val) => {
 const openTableModal = () => { loadTables(); showTableModal.value = true }
 const selectTable = async (table) => { selectedTable.value = table; cart.value = []; await fetchTableOrder(table.id); showTableModal.value = false }
 
+// 🌟 ฟังก์ชัน พับหน้าต่าง/เคลียร์โต๊ะ 🌟
 const clearTable = async () => {
   if (!selectedTable.value) return;
 
@@ -498,7 +499,7 @@ const printToIframe = (htmlContent) => {
   };
 }
 
-// 🌟 ส่งเข้าครัว และถามเรื่องพิมพ์ใบสั่งอาหาร (Kitchen Ticket) 🌟
+// 🌟 ส่งเข้าครัว 🌟
 const sendOrderToKitchen = async () => {
   if (!selectedTable.value || cart.value.length === 0) return
   isSubmitting.value = true
@@ -507,14 +508,14 @@ const sendOrderToKitchen = async () => {
     if (orderId) {
       await supabase.from('orders').update({ total_amount: grandTotal.value }).eq('id', orderId)
     } else {
-      const { data: newOrder } = await supabase.from('orders').insert({ table_id: selectedTable.value.id, total_amount: grandTotal.value, status: 'Open' }).select().single()
+      const { data: newOrder } = await supabase.from('orders').insert({ store_id: myStoreId.value, table_id: selectedTable.value.id, total_amount: grandTotal.value, status: 'Open' }).select().single()
       orderId = newOrder.id
     }
     
     await supabase.from('tables').update({ status: 'Occupied' }).eq('id', selectedTable.value.id)
     selectedTable.value.status = 'Occupied'
 
-    const details = cart.value.map(item => ({ order_id: orderId, menu_id: item.id, menu_name: item.menu_name, price: item.price, quantity: item.qty, total_price: item.price * item.qty, kitchen_status: 'Pending' }))
+    const details = cart.value.map(item => ({ store_id: myStoreId.value, order_id: orderId, menu_id: item.id, menu_name: item.menu_name, price: item.price, quantity: item.qty, total_price: item.price * item.qty, kitchen_status: 'Pending' }))
     await supabase.from('order_details').insert(details)
     
     const itemsToPrint = [...cart.value]; 
@@ -594,7 +595,7 @@ const handleNumpad = (val) => {
 
 const searchMember = async () => {
   if (!memberPhone.value) return
-  const { data } = await supabase.from('members').select('*').eq('phone', memberPhone.value).maybeSingle()
+  const { data } = await supabase.from('members').select('*').eq('phone', memberPhone.value).eq('store_id', myStoreId.value).maybeSingle()
   if (data) memberInfo.value = data
   else Swal.fire({ icon: 'error', title: 'ไม่พบข้อมูลสมาชิก', toast: true, position: 'top', timer: 2000, showConfirmButton: false })
 }
@@ -610,7 +611,7 @@ const promptRegisterMember = async () => {
     preConfirm: () => { return { phone: document.getElementById('swal-phone').value, name: document.getElementById('swal-name').value } }
   })
   if (formValues && formValues.phone && formValues.name) {
-    const { error } = await supabase.from('members').insert({ phone: formValues.phone, name: formValues.name, points: 0, total_spent: 0 })
+    const { error } = await supabase.from('members').insert({ store_id: myStoreId.value, phone: formValues.phone, name: formValues.name, points: 0, total_spent: 0 })
     if (error) Swal.fire('ผิดพลาด', 'เบอร์นี้อาจมีในระบบแล้ว', 'error')
     else { memberPhone.value = formValues.phone; searchMember() }
   }
@@ -629,7 +630,7 @@ const submitPayment = async () => {
       const earnRate = Number(storeSettings.value.PointEarnRate) || 100
       const earnedPoints = Math.floor(netTotal.value / earnRate)
       const usedPoints = Number(usePointsAmount.value) || 0
-      await supabase.from('members').update({ total_spent: Number(memberInfo.value.total_spent) + netTotal.value, points: Number(memberInfo.value.points) - usedPoints + earnedPoints }).eq('phone', memberInfo.value.phone)
+      await supabase.from('members').update({ total_spent: Number(memberInfo.value.total_spent) + netTotal.value, points: Number(memberInfo.value.points) - usedPoints + earnedPoints }).eq('phone', memberInfo.value.phone).eq('store_id', myStoreId.value)
     }
 
     const { data: orderItems } = await supabase.from('order_details').select('quantity, menus(inventory_id)').eq('order_id', currentOrderId.value).neq('kitchen_status', 'Cancelled').neq('kitchen_status', 'Voided')
@@ -641,7 +642,7 @@ const submitPayment = async () => {
         if (invItem) {
           const newQty = Number(invItem.stock_qty) - qtyToDeduct
           await supabase.from('inventory').update({ stock_qty: newQty }).eq('id', invId)
-          await supabase.from('inventory_logs').insert([{ item_name: invItem.item_name, action: `ขายหน้าร้าน (บิล #${currentOrderId.value.split('-')[0].toUpperCase()})`, qty_change: -qtyToDeduct, remaining: newQty }])
+          await supabase.from('inventory_logs').insert([{ store_id: myStoreId.value, item_name: invItem.item_name, action: `ขายหน้าร้าน (บิล #${currentOrderId.value.split('-')[0].toUpperCase()})`, qty_change: -qtyToDeduct, remaining: newQty }])
         }
       }
     }
@@ -765,21 +766,21 @@ const generateQR = async () => {
 }
 
 const setupPosRealtime = () => {
-  posRealtimeChannel.value = supabase.channel('pos_order_updates')
-    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'order_details' }, payload => {
+  posRealtimeChannel = supabase.channel(`pos_order_updates_${myStoreId.value}`)
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'order_details', filter: `store_id=eq.${myStoreId.value}` }, payload => {
        if (currentOrderId.value && payload.new.order_id === currentOrderId.value) {
          const idx = activeItems.value.findIndex(item => item.id === payload.new.id)
          if (idx !== -1) activeItems.value[idx].kitchen_status = payload.new.kitchen_status
        }
     })
-    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'orders' }, payload => {
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'orders', filter: `store_id=eq.${myStoreId.value}` }, payload => {
       if (selectedTable.value && payload.new.table_id === selectedTable.value.id) {
         currentOrderId.value = payload.new.id;
         fetchTableOrder(selectedTable.value.id);
         Swal.fire({ icon: 'info', title: 'โต๊ะนี้เปิดบิลสั่งอาหารแล้ว!', toast: true, position: 'top', timer: 2000, showConfirmButton: false })
       }
     })
-    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'order_details' }, async payload => {
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'order_details', filter: `store_id=eq.${myStoreId.value}` }, async payload => {
        if (currentOrderId.value === payload.new.order_id) {
          fetchTableOrder(selectedTable.value.id)
          Swal.fire({ icon: 'info', title: 'มีออเดอร์ใหม่จากลูกค้าโต๊ะนี้!', toast: true, position: 'top', timer: 2000, showConfirmButton: false })
@@ -792,24 +793,32 @@ const setupPosRealtime = () => {
          }
        }
     })
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'tables' }, () => { loadTables() })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'tables', filter: `store_id=eq.${myStoreId.value}` }, () => { loadTables() })
     .subscribe()
 }
 
 onMounted(async () => {
-  loadSettings()
-  loadMenus()
-  setupPosRealtime()
+  const savedUser = JSON.parse(localStorage.getItem('rmpro_user'))
+  if(savedUser && savedUser.store_id) {
+    myStoreId.value = savedUser.store_id
+    
+    const { data: storeInfo } = await supabase.from('stores').select('package_type').eq('id', myStoreId.value).single()
+    if(storeInfo) isProPlan.value = storeInfo.package_type === 'Pro'
 
-  if (route.query.table_id) {
-    await loadTables()
-    const t = tables.value.find(x => x.id == route.query.table_id)
-    if (t) { await selectTable(t); router.replace('/pos') }
+    loadSettings()
+    loadMenus()
+    setupPosRealtime()
+
+    if (route.query.table_id) {
+      await loadTables()
+      const t = tables.value.find(x => x.id == route.query.table_id)
+      if (t) { await selectTable(t); router.replace('/pos') }
+    }
   }
 })
 
 onUnmounted(() => {
-  if (posRealtimeChannel.value) supabase.removeChannel(posRealtimeChannel.value)
+  if (posRealtimeChannel) supabase.removeChannel(posRealtimeChannel)
 })
 </script>
 

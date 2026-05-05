@@ -3,10 +3,7 @@
     
     <div class="bg-white px-8 py-6 border-b border-gray-200 shadow-sm z-10 shrink-0">
       <h2 class="text-3xl font-black text-gray-800 flex items-center tracking-tight">
-        <div class="w-12 h-12 bg-gray-100 text-gray-800 rounded-2xl flex items-center justify-center mr-4 shadow-inner">
-          <i class="fa-solid fa-cogs"></i>
-        </div>
-        ตั้งค่าและจัดการระบบ
+        <div class="w-12 h-12 bg-gray-100 text-gray-800 rounded-2xl flex items-center justify-center mr-4 shadow-inner"><i class="fa-solid fa-cogs"></i></div> ตั้งค่าและจัดการระบบ
       </h2>
       <div class="flex gap-3 mt-6 overflow-x-auto no-scrollbar pb-2">
         <button @click="settingTab = 'menus'" :class="['px-6 py-3 rounded-2xl font-bold text-sm transition-all whitespace-nowrap border-2', settingTab === 'menus' ? 'bg-gray-800 text-white border-gray-800 shadow-lg' : 'bg-white text-gray-500 border-gray-100 hover:border-gray-300 hover:bg-gray-50']"><i class="fa-solid fa-burger mr-2"></i> เมนูอาหาร</button>
@@ -20,67 +17,26 @@
     </div>
 
     <div class="flex-1 overflow-y-auto p-6 md:p-8 relative">
-      <div v-if="isLoading" class="absolute inset-0 z-50 flex flex-col items-center justify-center bg-gray-50/80 backdrop-blur-sm">
-        <i class="fa-solid fa-circle-notch fa-spin text-5xl text-primary mb-4"></i>
-        <p class="font-black text-gray-500 tracking-widest uppercase">กำลังดึงข้อมูล...</p>
-      </div>
+      <div v-if="isLoading" class="absolute inset-0 z-50 flex flex-col items-center justify-center bg-gray-50/80 backdrop-blur-sm"><i class="fa-solid fa-circle-notch fa-spin text-5xl text-primary mb-4"></i><p class="font-black text-gray-500 tracking-widest uppercase">กำลังดึงข้อมูลร้านของคุณ...</p></div>
 
       <div v-if="settingTab === 'menus'" class="animate-[fadeIn_0.3s_ease-out] flex flex-col h-full max-w-7xl mx-auto">
         <div class="flex flex-col lg:flex-row justify-between lg:items-center gap-4 mb-6 shrink-0">
           <h3 class="text-2xl font-black text-gray-800">รายการอาหาร <span class="text-primary text-lg">({{ filteredMenus.length }})</span></h3>
           <div class="flex flex-wrap items-center gap-3">
             <div class="relative"><i class="fa-solid fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i><input v-model="searchMenuQuery" type="text" placeholder="ค้นหาชื่อเมนู..." class="pl-10 pr-4 py-3 bg-white border border-gray-200 text-gray-600 font-bold rounded-xl outline-none focus:border-primary shadow-sm w-48 lg:w-64 transition-all"></div>
-            <select v-model="filterMenuCategory" class="bg-white border border-gray-200 text-gray-600 font-bold px-4 py-3 rounded-xl outline-none focus:border-primary shadow-sm cursor-pointer">
-              <option value="All">ทุกหมวดหมู่</option>
-              <option v-for="cat in categoryOptions" :key="cat.id" :value="cat.option_value">{{ cat.option_value }}</option>
-            </select>
+            <select v-model="filterMenuCategory" class="bg-white border border-gray-200 text-gray-600 font-bold px-4 py-3 rounded-xl outline-none focus:border-primary shadow-sm cursor-pointer"><option value="All">ทุกหมวดหมู่</option><option v-for="cat in categoryOptions" :key="cat.id" :value="cat.option_value">{{ cat.option_value }}</option></select>
             <button @click="openMenuModal('add')" class="bg-primary hover:bg-orange-600 text-white px-6 py-3 rounded-xl font-bold shadow-lg shadow-orange-500/30 transition-all active:scale-95"><i class="fa-solid fa-plus mr-2"></i> เพิ่มเมนูใหม่</button>
           </div>
         </div>
         <div class="bg-white rounded-3xl shadow-sm border border-gray-100 flex-1 flex flex-col overflow-hidden">
-          <div class="flex-1 overflow-y-auto">
-            <table class="w-full text-left border-collapse">
-              <thead><tr class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider border-b border-gray-100 sticky top-0 z-10"><th class="p-5 font-bold">รูปภาพ</th><th class="p-5 font-bold">ชื่อเมนู</th><th class="p-5 font-bold">หมวดหมู่</th><th class="p-5 font-bold text-center">ผูกสต๊อกคลัง</th><th class="p-5 font-bold text-right">ราคา (฿)</th><th class="p-5 font-bold text-center">สถานะ</th><th class="p-5 font-bold text-center">จัดการ</th></tr></thead>
-              <tbody class="divide-y divide-gray-50">
-                <tr v-if="filteredMenus.length === 0"><td colspan="7" class="text-center py-12 text-gray-400 font-bold text-lg"><i class="fa-solid fa-burger text-4xl block mb-3 opacity-30"></i>ไม่พบข้อมูลเมนู</td></tr>
-                <tr v-for="menu in paginatedMenus" :key="menu.id" class="hover:bg-orange-50/30 transition-colors">
-                  <td class="p-5"><img v-if="menu.image_url" :src="menu.image_url" class="w-14 h-14 rounded-xl object-cover border border-gray-200"><div v-else class="w-14 h-14 bg-gray-100 rounded-xl flex items-center justify-center text-gray-400"><i class="fa-solid fa-image"></i></div></td>
-                  <td class="p-5 font-black text-gray-800 text-lg">{{ menu.menu_name }}</td>
-                  <td class="p-5 font-bold text-gray-500"><span class="bg-gray-100 px-3 py-1 rounded-lg text-sm">{{ menu.category }}</span></td>
-                  <td class="p-5 text-center">
-                    <span v-if="menu.inventory_id" class="text-[10px] text-blue-600 bg-blue-50 border border-blue-200 px-3 py-1 rounded-full font-bold uppercase tracking-wider"><i class="fa-solid fa-link mr-1"></i> ผูกแล้ว</span>
-                    <span v-else class="text-[10px] text-gray-300 font-bold">-</span>
-                  </td>
-                  <td class="p-5 font-black text-primary text-right text-xl">฿{{ Number(menu.price).toLocaleString() }}</td>
-                  <td class="p-5 text-center"><span :class="['px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider', menu.status === 'Available' ? 'bg-emerald-50 text-emerald-600 border border-emerald-200' : 'bg-red-50 text-red-600 border border-red-200']">{{ menu.status === 'Available' ? 'พร้อมขาย' : 'ของหมด' }}</span></td>
-                  <td class="p-5 text-center space-x-2"><button @click="openMenuModal('edit', menu)" class="w-10 h-10 rounded-xl bg-gray-50 text-gray-600 border border-gray-200 hover:bg-blue-500 hover:text-white hover:border-blue-500 transition-colors shadow-sm"><i class="fa-solid fa-pen"></i></button><button @click="deleteMenu(menu)" class="w-10 h-10 rounded-xl bg-gray-50 text-gray-600 border border-gray-200 hover:bg-red-500 hover:text-white hover:border-red-500 transition-colors shadow-sm"><i class="fa-solid fa-trash"></i></button></td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+          <div class="flex-1 overflow-y-auto"><table class="w-full text-left border-collapse"><thead><tr class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider border-b border-gray-100 sticky top-0 z-10"><th class="p-5 font-bold">รูปภาพ</th><th class="p-5 font-bold">ชื่อเมนู</th><th class="p-5 font-bold">หมวดหมู่</th><th class="p-5 font-bold text-center">ผูกสต๊อกคลัง</th><th class="p-5 font-bold text-right">ราคา (฿)</th><th class="p-5 font-bold text-center">สถานะ</th><th class="p-5 font-bold text-center">จัดการ</th></tr></thead><tbody class="divide-y divide-gray-50"><tr v-if="filteredMenus.length === 0"><td colspan="7" class="text-center py-12 text-gray-400 font-bold text-lg"><i class="fa-solid fa-burger text-4xl block mb-3 opacity-30"></i>ไม่พบข้อมูลเมนู</td></tr><tr v-for="menu in paginatedMenus" :key="menu.id" class="hover:bg-orange-50/30 transition-colors"><td class="p-5"><img v-if="menu.image_url" :src="menu.image_url" class="w-14 h-14 rounded-xl object-cover border border-gray-200"><div v-else class="w-14 h-14 bg-gray-100 rounded-xl flex items-center justify-center text-gray-400"><i class="fa-solid fa-image"></i></div></td><td class="p-5 font-black text-gray-800 text-lg">{{ menu.menu_name }}</td><td class="p-5 font-bold text-gray-500"><span class="bg-gray-100 px-3 py-1 rounded-lg text-sm">{{ menu.category }}</span></td><td class="p-5 text-center"><span v-if="menu.inventory_id" class="text-[10px] text-blue-600 bg-blue-50 border border-blue-200 px-3 py-1 rounded-full font-bold uppercase tracking-wider"><i class="fa-solid fa-link mr-1"></i> ผูกแล้ว</span><span v-else class="text-[10px] text-gray-300 font-bold">-</span></td><td class="p-5 font-black text-primary text-right text-xl">฿{{ Number(menu.price).toLocaleString() }}</td><td class="p-5 text-center"><span :class="['px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider', menu.status === 'Available' ? 'bg-emerald-50 text-emerald-600 border border-emerald-200' : 'bg-red-50 text-red-600 border border-red-200']">{{ menu.status === 'Available' ? 'พร้อมขาย' : 'ของหมด' }}</span></td><td class="p-5 text-center space-x-2"><button @click="openMenuModal('edit', menu)" class="w-10 h-10 rounded-xl bg-gray-50 text-gray-600 border border-gray-200 hover:bg-blue-500 hover:text-white transition-colors shadow-sm"><i class="fa-solid fa-pen"></i></button><button @click="deleteMenu(menu)" class="w-10 h-10 rounded-xl bg-gray-50 text-gray-600 border border-gray-200 hover:bg-red-500 hover:text-white transition-colors shadow-sm"><i class="fa-solid fa-trash"></i></button></td></tr></tbody></table></div>
           <div class="p-5 border-t border-gray-100 bg-gray-50 flex items-center justify-between shrink-0"><span class="text-sm text-gray-500 font-bold">หน้า {{ currentPageMenu }} จาก {{ totalMenuPages }}</span><div class="flex gap-2"><button @click="currentPageMenu--" :disabled="currentPageMenu === 1" class="px-5 py-2 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-100 disabled:opacity-50 transition-all shadow-sm">ก่อนหน้า</button><button @click="currentPageMenu++" :disabled="currentPageMenu === totalMenuPages" class="px-5 py-2 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-100 disabled:opacity-50 transition-all shadow-sm">ถัดไป</button></div></div>
         </div>
       </div>
 
       <div v-if="settingTab === 'inventory'" class="animate-[fadeIn_0.3s_ease-out] flex flex-col h-full max-w-6xl mx-auto">
         <div class="flex justify-between items-center mb-6 shrink-0"><h3 class="text-2xl font-black text-gray-800">คลังสินค้าและวัตถุดิบ <span class="text-blue-600 text-lg">({{ inventoryList.length }})</span></h3><div class="flex items-center gap-3"><div class="relative"><i class="fa-solid fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i><input v-model="searchInventoryQuery" type="text" placeholder="ค้นหาสินค้า..." class="pl-10 pr-4 py-3 bg-white border border-gray-200 text-gray-600 font-bold rounded-xl outline-none focus:border-blue-500 shadow-sm w-48 md:w-64 transition-all"></div><button @click="showLogModal = true" class="bg-white border border-gray-200 hover:bg-gray-100 text-gray-700 px-6 py-3 rounded-xl font-bold shadow-sm transition-all active:scale-95"><i class="fa-solid fa-clock-rotate-left mr-2"></i> ประวัติ Log</button><button @click="openInventoryModal('add')" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-bold shadow-lg shadow-blue-500/30 transition-all active:scale-95"><i class="fa-solid fa-plus mr-2"></i> เพิ่มสินค้า</button></div></div>
-        <div class="bg-white rounded-3xl shadow-sm border border-gray-100 flex-1 flex flex-col overflow-hidden">
-          <div class="flex-1 overflow-y-auto">
-            <table class="w-full text-left border-collapse">
-              <thead><tr class="bg-blue-50 text-blue-800 text-xs uppercase tracking-wider border-b border-blue-100 sticky top-0 z-10"><th class="p-5 font-bold">ชื่อสินค้า / วัตถุดิบ</th><th class="p-5 font-bold text-center">คงเหลือ (จำนวน)</th><th class="p-5 font-bold text-center">แจ้งเตือน (Low Alert)</th><th class="p-5 font-bold text-center">จัดการ</th></tr></thead>
-              <tbody class="divide-y divide-gray-50">
-                <tr v-if="paginatedInventory.length === 0"><td colspan="4" class="text-center py-12 text-gray-400 font-bold text-lg"><i class="fa-solid fa-boxes-stacked text-4xl block mb-3 opacity-30"></i>ไม่พบข้อมูลคลังสินค้า</td></tr>
-                <tr v-for="inv in paginatedInventory" :key="inv.id" class="hover:bg-blue-50/30 transition-colors">
-                  <td class="p-5 font-black text-gray-800 text-lg">{{ inv.item_name }} <span class="text-[10px] font-mono text-gray-400 ml-2 bg-gray-100 px-2 py-1 rounded-md">ID: {{ inv.id }}</span></td>
-                  <td class="p-5 text-center"><span :class="['px-4 py-1.5 rounded-xl font-black text-lg shadow-sm border', Number(inv.stock_qty) <= Number(inv.low_alert) ? 'bg-red-50 text-red-600 border-red-200 animate-pulse' : 'bg-green-50 text-green-700 border-green-200']">{{ inv.stock_qty }} <span class="text-xs font-bold">{{ inv.unit }}</span></span><p v-if="Number(inv.stock_qty) <= Number(inv.low_alert)" class="text-[10px] text-red-500 font-bold mt-1"><i class="fa-solid fa-triangle-exclamation"></i> ใกล้หมด!</p></td>
-                  <td class="p-5 text-center text-gray-500 font-bold">{{ inv.low_alert }} {{ inv.unit }}</td>
-                  <td class="p-5 text-center space-x-2"><button @click="openAddStockModal(inv)" class="w-10 h-10 rounded-xl bg-green-50 border border-green-200 text-green-600 hover:bg-green-500 hover:text-white transition-colors" title="เติมสต๊อก"><i class="fa-solid fa-boxes-packing"></i></button><button @click="openInventoryModal('edit', inv)" class="w-10 h-10 rounded-xl bg-blue-50 border border-blue-200 text-blue-500 hover:bg-blue-600 hover:text-white transition-colors" title="แก้ไขข้อมูล"><i class="fa-solid fa-pen"></i></button><button @click="deleteInventory(inv)" class="w-10 h-10 rounded-xl bg-red-50 border border-red-200 text-red-500 hover:bg-red-600 hover:text-white transition-colors" title="ลบ"><i class="fa-solid fa-trash"></i></button></td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          <div class="p-5 border-t border-gray-100 bg-gray-50 flex items-center justify-between shrink-0"><span class="text-sm text-gray-500 font-bold">หน้า {{ currentPageInv }} จาก {{ totalInvPages }}</span><div class="flex gap-2"><button @click="currentPageInv--" :disabled="currentPageInv === 1" class="px-5 py-2 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-100 disabled:opacity-50 shadow-sm transition-all">ก่อนหน้า</button><button @click="currentPageInv++" :disabled="currentPageInv === totalInvPages" class="px-5 py-2 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-100 disabled:opacity-50 shadow-sm transition-all">ถัดไป</button></div></div>
-        </div>
+        <div class="bg-white rounded-3xl shadow-sm border border-gray-100 flex-1 flex flex-col overflow-hidden"><div class="flex-1 overflow-y-auto"><table class="w-full text-left border-collapse"><thead><tr class="bg-blue-50 text-blue-800 text-xs uppercase tracking-wider border-b border-blue-100 sticky top-0 z-10"><th class="p-5 font-bold">ชื่อสินค้า / วัตถุดิบ</th><th class="p-5 font-bold text-center">คงเหลือ (จำนวน)</th><th class="p-5 font-bold text-center">แจ้งเตือน (Low Alert)</th><th class="p-5 font-bold text-center">จัดการ</th></tr></thead><tbody class="divide-y divide-gray-50"><tr v-if="paginatedInventory.length === 0"><td colspan="4" class="text-center py-12 text-gray-400 font-bold text-lg"><i class="fa-solid fa-boxes-stacked text-4xl block mb-3 opacity-30"></i>ไม่พบข้อมูลคลังสินค้า</td></tr><tr v-for="inv in paginatedInventory" :key="inv.id" class="hover:bg-blue-50/30 transition-colors"><td class="p-5 font-black text-gray-800 text-lg">{{ inv.item_name }} <span class="text-[10px] font-mono text-gray-400 ml-2 bg-gray-100 px-2 py-1 rounded-md">ID: {{ inv.id }}</span></td><td class="p-5 text-center"><span :class="['px-4 py-1.5 rounded-xl font-black text-lg shadow-sm border', Number(inv.stock_qty) <= Number(inv.low_alert) ? 'bg-red-50 text-red-600 border-red-200 animate-pulse' : 'bg-green-50 text-green-700 border-green-200']">{{ inv.stock_qty }} <span class="text-xs font-bold">{{ inv.unit }}</span></span><p v-if="Number(inv.stock_qty) <= Number(inv.low_alert)" class="text-[10px] text-red-500 font-bold mt-1"><i class="fa-solid fa-triangle-exclamation"></i> ใกล้หมด!</p></td><td class="p-5 text-center text-gray-500 font-bold">{{ inv.low_alert }} {{ inv.unit }}</td><td class="p-5 text-center space-x-2"><button @click="openAddStockModal(inv)" class="w-10 h-10 rounded-xl bg-green-50 border border-green-200 text-green-600 hover:bg-green-500 hover:text-white transition-colors" title="เติมสต๊อก"><i class="fa-solid fa-boxes-packing"></i></button><button @click="openInventoryModal('edit', inv)" class="w-10 h-10 rounded-xl bg-blue-50 border border-blue-200 text-blue-500 hover:bg-blue-600 hover:text-white transition-colors" title="แก้ไขข้อมูล"><i class="fa-solid fa-pen"></i></button><button @click="deleteInventory(inv)" class="w-10 h-10 rounded-xl bg-red-50 border border-red-200 text-red-500 hover:bg-red-600 hover:text-white transition-colors" title="ลบ"><i class="fa-solid fa-trash"></i></button></td></tr></tbody></table></div><div class="p-5 border-t border-gray-100 bg-gray-50 flex items-center justify-between shrink-0"><span class="text-sm text-gray-500 font-bold">หน้า {{ currentPageInv }} จาก {{ totalInvPages }}</span><div class="flex gap-2"><button @click="currentPageInv--" :disabled="currentPageInv === 1" class="px-5 py-2 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-100 disabled:opacity-50 shadow-sm transition-all">ก่อนหน้า</button><button @click="currentPageInv++" :disabled="currentPageInv === totalInvPages" class="px-5 py-2 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-100 disabled:opacity-50 shadow-sm transition-all">ถัดไป</button></div></div></div>
       </div>
 
       <div v-if="settingTab === 'members'" class="animate-[fadeIn_0.3s_ease-out] flex flex-col h-full max-w-7xl mx-auto">
@@ -230,20 +186,11 @@ import { ref, computed, onMounted } from 'vue'
 import { supabase } from '../supabase'
 import Swal from 'sweetalert2'
 
-// 🌟 ตัวช่วยแจ้งเตือน (Toast) แบบสวยงามพรีเมียม 🌟
-const Toast = Swal.mixin({
-  toast: true,
-  position: 'top-end',
-  showConfirmButton: false,
-  timer: 2500,
-  timerProgressBar: true,
-  didOpen: (toast) => {
-    toast.addEventListener('mouseenter', Swal.stopTimer)
-    toast.addEventListener('mouseleave', Swal.resumeTimer)
-  }
-})
+const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2500, timerProgressBar: true })
 
-// State
+// 🌟 ตัวแปรเก็บ Store ID ของผู้ใช้ปัจจุบัน
+const myStoreId = ref(null)
+
 const settingTab = ref('menus')
 const isLoading = ref(true)
 
@@ -256,84 +203,31 @@ const usersList = ref([])
 const optionsList = ref([])
 
 const storeSettings = ref({})
-const editSettings = ref({
-  StoreName: '', Branch: '', Address: '', Phone: '', TaxID: '', FooterText: '', 
-  PromptPayID: '', PaymentMode: 'PromptPay', BankQRImageURL: '', BankName: '', BankAccountNo: '', BankAccountName: '', 
-  PointEarnRate: '100', TierSilverSpent: '5000', TierGoldSpent: '20000'
-})
+const editSettings = ref({ StoreName: '', Branch: '', Address: '', Phone: '', TaxID: '', FooterText: '', PromptPayID: '', PaymentMode: 'PromptPay', BankQRImageURL: '', BankName: '', BankAccountNo: '', BankAccountName: '', PointEarnRate: '100', TierSilverSpent: '5000', TierGoldSpent: '20000' })
 
-// Search & Filter state
-const searchMenuQuery = ref('')
-const filterMenuCategory = ref('All')
-const filterMenuType = ref('All')
-const searchInventoryQuery = ref('')
-const searchMemberQuery = ref('')
+// Search / Filter / Pagination State
+const searchMenuQuery = ref(''); const filterMenuCategory = ref('All'); const searchInventoryQuery = ref(''); const searchMemberQuery = ref('');
+const currentPageMenu = ref(1); const itemsPerPageMenu = 10; const currentPageInv = ref(1); const itemsPerPageInv = 15; const currentPageMember = ref(1); const itemsPerPageMember = 10; const currentPageTable = ref(1); const itemsPerPageTable = 10; const currentPageUser = ref(1); const itemsPerPageUser = 10; const currentPageLog = ref(1); const itemsPerPageLog = 15;
+const showMenuModal = ref(false); const showInventoryModal = ref(false); const showAddStockModal = ref(false); const showLogModal = ref(false); const showMemberModal = ref(false); const showTableModal = ref(false); const showUserModal = ref(false);
+const menuForm = ref({}); const inventoryForm = ref({}); const memberForm = ref({}); const tableForm = ref({}); const userForm = ref({});
+const quickCategory = ref(''); const quickRole = ref('');
 
-// Pagination
-const currentPageMenu = ref(1)
-const itemsPerPageMenu = 10
-const currentPageInv = ref(1)
-const itemsPerPageInv = 15 // 🌟 โชว์ 15 รายการ
-const currentPageMember = ref(1)
-const itemsPerPageMember = 10
-const currentPageTable = ref(1)
-const itemsPerPageTable = 10
-const currentPageUser = ref(1)
-const itemsPerPageUser = 10
-const currentPageLog = ref(1)
-const itemsPerPageLog = 15
-
-// Modals State
-const showMenuModal = ref(false)
-const showInventoryModal = ref(false)
-const showAddStockModal = ref(false)
-const showLogModal = ref(false)
-const showMemberModal = ref(false)
-const showTableModal = ref(false)
-const showUserModal = ref(false)
-
-const menuForm = ref({})
-const inventoryForm = ref({})
-const memberForm = ref({})
-const tableForm = ref({})
-const userForm = ref({})
-
-const quickCategory = ref('')
-const quickRole = ref('')
-
-// Computed (Options)
 const categoryOptions = computed(() => optionsList.value.filter(o => o.option_type === 'Category'))
 const roleOptions = computed(() => optionsList.value.filter(o => o.option_type === 'Role'))
 
-// Computed (Filtered Lists & Pagination)
-const filteredMenus = computed(() => {
-  let list = menus.value
-  if (filterMenuCategory.value !== 'All') list = list.filter(m => m.category === filterMenuCategory.value)
-  if (searchMenuQuery.value) {
-    const q = searchMenuQuery.value.toLowerCase()
-    list = list.filter(m => m.menu_name.toLowerCase().includes(q))
-  }
-  return list
-})
+// Computed (Filtered Lists)
+const filteredMenus = computed(() => { let list = menus.value; if (filterMenuCategory.value !== 'All') list = list.filter(m => m.category === filterMenuCategory.value); if (searchMenuQuery.value) { const q = searchMenuQuery.value.toLowerCase(); list = list.filter(m => m.menu_name.toLowerCase().includes(q)) } return list })
 const paginatedMenus = computed(() => filteredMenus.value.slice((currentPageMenu.value - 1) * itemsPerPageMenu, currentPageMenu.value * itemsPerPageMenu))
 const totalMenuPages = computed(() => Math.ceil(filteredMenus.value.length / itemsPerPageMenu) || 1)
 
-const filteredInventory = computed(() => {
-  let list = inventoryList.value
-  if (searchInventoryQuery.value) list = list.filter(i => i.item_name.toLowerCase().includes(searchInventoryQuery.value.toLowerCase()))
-  return list
-})
+const filteredInventory = computed(() => { let list = inventoryList.value; if (searchInventoryQuery.value) list = list.filter(i => i.item_name.toLowerCase().includes(searchInventoryQuery.value.toLowerCase())); return list })
 const paginatedInventory = computed(() => filteredInventory.value.slice((currentPageInv.value - 1) * itemsPerPageInv, currentPageInv.value * itemsPerPageInv))
 const totalInvPages = computed(() => Math.ceil(filteredInventory.value.length / itemsPerPageInv) || 1)
 
 const paginatedLogs = computed(() => inventoryLogs.value.slice((currentPageLog.value - 1) * itemsPerPageLog, currentPageLog.value * itemsPerPageLog))
 const totalLogPages = computed(() => Math.ceil(inventoryLogs.value.length / itemsPerPageLog) || 1)
 
-const filteredMembers = computed(() => {
-  let list = membersList.value
-  if (searchMemberQuery.value) list = list.filter(m => m.phone.includes(searchMemberQuery.value) || m.name.toLowerCase().includes(searchMemberQuery.value.toLowerCase()))
-  return list
-})
+const filteredMembers = computed(() => { let list = membersList.value; if (searchMemberQuery.value) list = list.filter(m => m.phone.includes(searchMemberQuery.value) || m.name.toLowerCase().includes(searchMemberQuery.value.toLowerCase())); return list })
 const paginatedMembers = computed(() => filteredMembers.value.slice((currentPageMember.value - 1) * itemsPerPageMember, currentPageMember.value * itemsPerPageMember))
 const totalMemberPages = computed(() => Math.ceil(filteredMembers.value.length / itemsPerPageMember) || 1)
 
@@ -343,39 +237,24 @@ const totalTablePages = computed(() => Math.ceil(tablesList.value.length / items
 const paginatedUsers = computed(() => usersList.value.slice((currentPageUser.value - 1) * itemsPerPageUser, currentPageUser.value * itemsPerPageUser))
 const totalUserPages = computed(() => Math.ceil(usersList.value.length / itemsPerPageUser) || 1)
 
-const formatDate = (dateStr) => {
-  if (!dateStr) return '-'
-  return new Date(dateStr).toLocaleDateString('th-TH', { day: '2-digit', month: 'short', year: 'numeric' })
-}
-const isExpired = (dateStr) => {
-  if (!dateStr) return false
-  return new Date(dateStr) < new Date()
-}
+const formatDate = (dateStr) => { if (!dateStr) return '-'; return new Date(dateStr).toLocaleDateString('th-TH', { day: '2-digit', month: 'short', year: 'numeric' }) }
+const isExpired = (dateStr) => { if (!dateStr) return false; return new Date(dateStr) < new Date() }
 
-// 📡 Load Everything with Error Handling 🌟
+// 📡 Load Everything 🌟 (เพิ่ม .eq('store_id', myStoreId.value) ทุกบรรทัด)
 const loadAllData = async () => {
+  if (!myStoreId.value) return;
   isLoading.value = true
   try {
     const [ resMenus, resTables, resMembers, resInv, resLogs, resUsers, resOptions, resSettings ] = await Promise.all([
-      supabase.from('menus').select('*').order('id', { ascending: false }),
-      supabase.from('tables').select('*').order('table_name'),
-      supabase.from('members').select('*').order('created_at', { ascending: false }),
-      supabase.from('inventory').select('*').order('item_name'),
-      supabase.from('inventory_logs').select('*').order('created_at', { ascending: false }).limit(50),
-      supabase.from('users').select('*').order('id'),
-      supabase.from('options').select('*'),
-      supabase.from('settings').select('*')
+      supabase.from('menus').select('*').eq('store_id', myStoreId.value).order('id', { ascending: false }),
+      supabase.from('tables').select('*').eq('store_id', myStoreId.value).order('table_name'),
+      supabase.from('members').select('*').eq('store_id', myStoreId.value).order('created_at', { ascending: false }),
+      supabase.from('inventory').select('*').eq('store_id', myStoreId.value).order('item_name'),
+      supabase.from('inventory_logs').select('*').eq('store_id', myStoreId.value).order('created_at', { ascending: false }).limit(50),
+      supabase.from('users').select('*').eq('store_id', myStoreId.value).order('id'),
+      supabase.from('options').select('*').eq('store_id', myStoreId.value),
+      supabase.from('settings').select('*').eq('store_id', myStoreId.value)
     ])
-
-    // ตรวจสอบและบันทึก Error ลง Console เพื่อให้หาสาเหตุง่ายขึ้น
-    if (resMenus.error) console.error('Menus Error:', resMenus.error)
-    if (resTables.error) console.error('Tables Error:', resTables.error)
-    if (resMembers.error) console.error('Members Error:', resMembers.error)
-    if (resInv.error) console.error('Inventory Error:', resInv.error)
-    if (resLogs.error) console.error('Inventory Logs Error:', resLogs.error)
-    if (resUsers.error) console.error('Users Error:', resUsers.error)
-    if (resOptions.error) console.error('Options Error:', resOptions.error)
-    if (resSettings.error) console.error('Settings Error:', resSettings.error)
 
     if (resMenus.data) menus.value = resMenus.data
     if (resTables.data) tablesList.value = resTables.data
@@ -390,208 +269,99 @@ const loadAllData = async () => {
       storeSettings.value = s
       editSettings.value = { ...editSettings.value, ...s } 
     }
-  } catch (error) {
-    console.error("Critical Load Error:", error)
-    Toast.fire({ icon: 'error', title: 'การดึงข้อมูลมีปัญหา' })
-  } finally {
-    isLoading.value = false
-  }
+  } catch (error) { Toast.fire({ icon: 'error', title: 'ไม่สามารถโหลดข้อมูลระบบได้' }) } finally { isLoading.value = false }
 }
 
-// 💾 Save Store Settings
+// 🌟 เพิ่ม store_id เข้าไปตอนอัปเดตค่า Settings
 const saveStoreSettings = async () => {
   isLoading.value = true
-  const updates = Object.keys(editSettings.value).map(key => ({
-    setting_key: key,
-    setting_value: String(editSettings.value[key])
-  }))
+  // ดึงค่าการตั้งค่าเดิมในฐานข้อมูลมาก่อน
+  const { data: existingSettings } = await supabase.from('settings').select('setting_key').eq('store_id', myStoreId.value)
+  const existingKeys = existingSettings ? existingSettings.map(s => s.setting_key) : []
 
-  const { error } = await supabase.from('settings').upsert(updates)
-  isLoading.value = false
-  
-  if (error) Toast.fire({ icon: 'error', title: 'ไม่สามารถบันทึกได้' })
-  else {
-    Toast.fire({ icon: 'success', title: 'บันทึกตั้งค่าร้านสำเร็จ!' })
-    loadAllData()
+  for (const [key, value] of Object.entries(editSettings.value)) {
+    if (existingKeys.includes(key)) {
+      await supabase.from('settings').update({ setting_value: String(value) }).eq('store_id', myStoreId.value).eq('setting_key', key)
+    } else {
+      await supabase.from('settings').insert([{ store_id: myStoreId.value, setting_key: key, setting_value: String(value) }])
+    }
   }
+  
+  isLoading.value = false
+  Toast.fire({ icon: 'success', title: 'บันทึกตั้งค่าร้านสำเร็จ!' })
+  loadAllData()
 }
 
-// --- Menus ---
-const openMenuModal = (action, menu = null) => {
-  menuForm.value = action === 'add' 
-    ? { menu_name: '', category: '', price: 0, type: 'Normal', inventory_id: '', image_url: '', status: 'Available', action: 'add' }
-    : { ...menu, action: 'edit' }
-  showMenuModal.value = true
-}
+// --- การสร้างข้อมูลทั้งหมด เพิ่ม store_id ---
+const openMenuModal = (action, menu = null) => { menuForm.value = action === 'add' ? { menu_name: '', category: '', price: 0, type: 'Normal', inventory_id: '', image_url: '', status: 'Available', action: 'add' } : { ...menu, action: 'edit' }; showMenuModal.value = true }
 const submitMenuForm = async () => {
   isLoading.value = true
-  const payload = { 
-    menu_name: menuForm.value.menu_name, category: menuForm.value.category, price: menuForm.value.price, 
-    type: menuForm.value.type, inventory_id: menuForm.value.inventory_id || null, image_url: menuForm.value.image_url, status: menuForm.value.status 
-  }
-  
-  let error
-  if (menuForm.value.action === 'add') {
-    const res = await supabase.from('menus').insert([payload])
-    error = res.error
-  } else {
-    const res = await supabase.from('menus').update(payload).eq('id', menuForm.value.id)
-    error = res.error
-  }
-  
-  showMenuModal.value = false
-  if (error) Toast.fire({ icon: 'error', title: error.message })
-  else { Toast.fire({ icon: 'success', title: 'บันทึกเมนูสำเร็จ' }); loadAllData() }
+  const payload = { store_id: myStoreId.value, menu_name: menuForm.value.menu_name, category: menuForm.value.category, price: menuForm.value.price, type: menuForm.value.type, inventory_id: menuForm.value.inventory_id || null, image_url: menuForm.value.image_url, status: menuForm.value.status }
+  let error; if (menuForm.value.action === 'add') { const res = await supabase.from('menus').insert([payload]); error = res.error } else { const res = await supabase.from('menus').update(payload).eq('id', menuForm.value.id); error = res.error }
+  showMenuModal.value = false; if (error) Toast.fire({ icon: 'error', title: error.message }); else { Toast.fire({ icon: 'success', title: 'บันทึกเมนูสำเร็จ' }); loadAllData() }
 }
-const deleteMenu = async (menu) => {
-  const res = await Swal.fire({ title: 'ลบเมนู?', text: `ลบ ${menu.menu_name} ใช่หรือไม่?`, icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444' })
-  if (res.isConfirmed) {
-    isLoading.value = true
-    await supabase.from('menus').delete().eq('id', menu.id)
-    Toast.fire({ icon: 'success', title: 'ลบสำเร็จ' })
-    loadAllData()
-  }
-}
+const deleteMenu = async (menu) => { const res = await Swal.fire({ title: 'ลบเมนู?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444' }); if (res.isConfirmed) { isLoading.value = true; await supabase.from('menus').delete().eq('id', menu.id); Toast.fire({ icon: 'success', title: 'ลบสำเร็จ' }); loadAllData() } }
 
-// --- Inventory ---
-const openInventoryModal = (action, inv = null) => {
-  inventoryForm.value = action === 'add' ? { item_name: '', stock_qty: '', low_alert: '', unit: '', action: 'add' } : { ...inv, action: 'edit' }
-  showInventoryModal.value = true
-}
+const openInventoryModal = (action, inv = null) => { inventoryForm.value = action === 'add' ? { item_name: '', stock_qty: '', low_alert: '', unit: '', action: 'add' } : { ...inv, action: 'edit' }; showInventoryModal.value = true }
 const submitInventoryForm = async () => {
   isLoading.value = true
-  const payload = { item_name: inventoryForm.value.item_name, stock_qty: inventoryForm.value.stock_qty, low_alert: inventoryForm.value.low_alert, unit: inventoryForm.value.unit }
-  let error
-  if(inventoryForm.value.action === 'add') {
-    const res = await supabase.from('inventory').insert([payload])
-    error = res.error
-  } else {
-    const res = await supabase.from('inventory').update(payload).eq('id', inventoryForm.value.id)
-    error = res.error
-  }
-  showInventoryModal.value = false
-  if (error) Toast.fire({ icon: 'error', title: error.message })
-  else { Toast.fire({ icon: 'success', title: 'บันทึกคลังสำเร็จ' }); loadAllData() }
+  const payload = { store_id: myStoreId.value, item_name: inventoryForm.value.item_name, stock_qty: inventoryForm.value.stock_qty, low_alert: inventoryForm.value.low_alert, unit: inventoryForm.value.unit }
+  let error; if(inventoryForm.value.action === 'add') { const res = await supabase.from('inventory').insert([payload]); error = res.error } else { const res = await supabase.from('inventory').update(payload).eq('id', inventoryForm.value.id); error = res.error }
+  showInventoryModal.value = false; if (error) Toast.fire({ icon: 'error', title: error.message }); else { Toast.fire({ icon: 'success', title: 'บันทึกคลังสำเร็จ' }); loadAllData() }
 }
-const deleteInventory = async (inv) => {
-  const res = await Swal.fire({ title: 'ลบสินค้า?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444' })
-  if (res.isConfirmed) {
-    isLoading.value = true; await supabase.from('inventory').delete().eq('id', inv.id); 
-    Toast.fire({ icon: 'success', title: 'ลบสำเร็จ' })
-    loadAllData()
-  }
-}
-const openAddStockModal = (inv) => {
-  inventoryForm.value = { ...inv, add_qty: '', action: 'addStock' }
-  showAddStockModal.value = true
-}
+const deleteInventory = async (inv) => { const res = await Swal.fire({ title: 'ลบสินค้า?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444' }); if (res.isConfirmed) { isLoading.value = true; await supabase.from('inventory').delete().eq('id', inv.id); Toast.fire({ icon: 'success', title: 'ลบสำเร็จ' }); loadAllData() } }
+const openAddStockModal = (inv) => { inventoryForm.value = { ...inv, add_qty: '', action: 'addStock' }; showAddStockModal.value = true }
 const submitAddStock = async () => {
   isLoading.value = true
   const newQty = Number(inventoryForm.value.stock_qty) + Number(inventoryForm.value.add_qty)
-  
   await supabase.from('inventory').update({ stock_qty: newQty }).eq('id', inventoryForm.value.id)
-  await supabase.from('inventory_logs').insert([{ item_name: inventoryForm.value.item_name, action: 'เติมสต๊อก', qty_change: inventoryForm.value.add_qty, remaining: newQty }])
-  
-  showAddStockModal.value = false
-  Toast.fire({ icon: 'success', title: 'เติมสต๊อกสำเร็จ' })
-  loadAllData()
+  await supabase.from('inventory_logs').insert([{ store_id: myStoreId.value, item_name: inventoryForm.value.item_name, action: 'เติมสต๊อก', qty_change: inventoryForm.value.add_qty, remaining: newQty }])
+  showAddStockModal.value = false; Toast.fire({ icon: 'success', title: 'เติมสต๊อกสำเร็จ' }); loadAllData()
 }
 
-// --- Members ---
-const openMemberModal = (action, member = null) => {
-  memberForm.value = action === 'add' 
-    ? { phone: '', name: '', points: 0, tier: 'Member', expiry_date: '', points_expiry_date: '', action: 'add' } 
-    : { ...member, action: 'edit' }
-  showMemberModal.value = true
-}
+const openMemberModal = (action, member = null) => { memberForm.value = action === 'add' ? { phone: '', name: '', points: 0, tier: 'Member', expiry_date: '', points_expiry_date: '', action: 'add' } : { ...member, action: 'edit' }; showMemberModal.value = true }
 const submitMemberForm = async () => {
   isLoading.value = true
-  const payload = { 
-    phone: memberForm.value.phone, name: memberForm.value.name, points: memberForm.value.points, tier: memberForm.value.tier,
-    expiry_date: memberForm.value.expiry_date || null, points_expiry_date: memberForm.value.points_expiry_date || null 
-  }
-  let error
-  if(memberForm.value.action === 'add') {
-    const res = await supabase.from('members').insert([payload])
-    error = res.error
-  } else {
-    const res = await supabase.from('members').update(payload).eq('phone', memberForm.value.phone)
-    error = res.error
-  }
-  showMemberModal.value = false
-  if (error) Toast.fire({ icon: 'error', title: error.message })
-  else { Toast.fire({ icon: 'success', title: 'บันทึกสมาชิกสำเร็จ' }); loadAllData() }
+  const payload = { store_id: myStoreId.value, phone: memberForm.value.phone, name: memberForm.value.name, points: memberForm.value.points, tier: memberForm.value.tier, expiry_date: memberForm.value.expiry_date || null, points_expiry_date: memberForm.value.points_expiry_date || null }
+  let error; if(memberForm.value.action === 'add') { const res = await supabase.from('members').insert([payload]); error = res.error } else { const res = await supabase.from('members').update(payload).eq('phone', memberForm.value.phone).eq('store_id', myStoreId.value); error = res.error }
+  showMemberModal.value = false; if (error) Toast.fire({ icon: 'error', title: error.message }); else { Toast.fire({ icon: 'success', title: 'บันทึกสมาชิกสำเร็จ' }); loadAllData() }
 }
-const deleteMember = async (member) => {
-  const res = await Swal.fire({ title: 'ลบสมาชิก?', text: 'แต้มสะสมจะหายทั้งหมด', icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444' })
-  if (res.isConfirmed) { isLoading.value = true; await supabase.from('members').delete().eq('phone', member.phone); Toast.fire({ icon: 'success', title: 'ลบสำเร็จ' }); loadAllData() }
-}
+const deleteMember = async (member) => { const res = await Swal.fire({ title: 'ลบสมาชิก?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444' }); if (res.isConfirmed) { isLoading.value = true; await supabase.from('members').delete().eq('phone', member.phone).eq('store_id', myStoreId.value); Toast.fire({ icon: 'success', title: 'ลบสำเร็จ' }); loadAllData() } }
 
-// --- Tables ---
-const openTableModal = (action, table = null) => {
-  tableForm.value = action === 'add' ? { table_name: '', description: '', action: 'add' } : { ...table, action: 'edit' }
-  showTableModal.value = true
-}
+const openTableModal = (action, table = null) => { tableForm.value = action === 'add' ? { table_name: '', description: '', action: 'add' } : { ...table, action: 'edit' }; showTableModal.value = true }
 const submitTableForm = async () => {
   isLoading.value = true
-  const payload = { table_name: tableForm.value.table_name, description: tableForm.value.description }
-  if(tableForm.value.action === 'add') await supabase.from('tables').insert([payload])
-  else await supabase.from('tables').update(payload).eq('id', tableForm.value.id)
-  showTableModal.value = false
-  Toast.fire({ icon: 'success', title: 'บันทึกสำเร็จ' })
-  loadAllData()
+  const payload = { store_id: myStoreId.value, table_name: tableForm.value.table_name, description: tableForm.value.description }
+  if(tableForm.value.action === 'add') await supabase.from('tables').insert([payload]); else await supabase.from('tables').update(payload).eq('id', tableForm.value.id)
+  showTableModal.value = false; Toast.fire({ icon: 'success', title: 'บันทึกสำเร็จ' }); loadAllData()
 }
-const deleteTable = async (table) => {
-  if (table.status !== 'Available') return Toast.fire({ icon: 'error', title: 'ลบไม่ได้ โต๊ะนี้มีลูกค้าอยู่' })
-  const res = await Swal.fire({ title: 'ลบโต๊ะ?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444' })
-  if (res.isConfirmed) { isLoading.value = true; await supabase.from('tables').delete().eq('id', table.id); Toast.fire({ icon: 'success', title: 'ลบสำเร็จ' }); loadAllData() }
-}
+const deleteTable = async (table) => { if (table.status !== 'Available') return Toast.fire({ icon: 'error', title: 'ลบไม่ได้ โต๊ะนี้มีลูกค้าอยู่' }); const res = await Swal.fire({ title: 'ลบโต๊ะ?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444' }); if (res.isConfirmed) { isLoading.value = true; await supabase.from('tables').delete().eq('id', table.id); Toast.fire({ icon: 'success', title: 'ลบสำเร็จ' }); loadAllData() } }
 
-// --- Users (Permissions) ---
-const openUserModal = (action, user = null) => {
-  userForm.value = action === 'add' 
-    ? { username: '', password: '', role: '', allowed_pages: [], action: 'add' } 
-    : { ...user, allowed_pages: user.allowed_pages ? user.allowed_pages.split(',') : [], action: 'edit' }
-  showUserModal.value = true
-}
+const openUserModal = (action, user = null) => { userForm.value = action === 'add' ? { username: '', password: '', role: '', allowed_pages: [], action: 'add' } : { ...user, allowed_pages: user.allowed_pages ? user.allowed_pages.split(',') : [], action: 'edit' }; showUserModal.value = true }
 const submitUserForm = async () => {
   isLoading.value = true
-  const payload = { 
-    username: userForm.value.username, password: userForm.value.password, 
-    role: userForm.value.role, allowed_pages: userForm.value.allowed_pages.join(',') 
-  }
-  if(userForm.value.action === 'add') await supabase.from('users').insert([payload])
-  else await supabase.from('users').update(payload).eq('id', userForm.value.id)
-  
-  showUserModal.value = false
-  Toast.fire({ icon: 'success', title: 'บันทึกผู้ใช้สำเร็จ' })
-  loadAllData()
+  const payload = { store_id: myStoreId.value, username: userForm.value.username, password: userForm.value.password, role: userForm.value.role, allowed_pages: userForm.value.allowed_pages.join(',') }
+  if(userForm.value.action === 'add') await supabase.from('users').insert([payload]); else await supabase.from('users').update(payload).eq('id', userForm.value.id)
+  showUserModal.value = false; Toast.fire({ icon: 'success', title: 'บันทึกผู้ใช้สำเร็จ' }); loadAllData()
 }
-const deleteUser = async (user) => {
-  const res = await Swal.fire({ title: 'ลบผู้ใช้?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444' })
-  if (res.isConfirmed) { isLoading.value = true; await supabase.from('users').delete().eq('id', user.id); Toast.fire({ icon: 'success', title: 'ลบสำเร็จ' }); loadAllData() }
-}
+const deleteUser = async (user) => { const res = await Swal.fire({ title: 'ลบผู้ใช้?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444' }); if (res.isConfirmed) { isLoading.value = true; await supabase.from('users').delete().eq('id', user.id); Toast.fire({ icon: 'success', title: 'ลบสำเร็จ' }); loadAllData() } }
 
-// --- Options ---
 const addQuickOption = async (type) => {
   const val = type === 'Category' ? quickCategory.value : quickRole.value
   if (!val) return
   isLoading.value = true
-  await supabase.from('options').insert([{ option_type: type, option_value: val }])
+  await supabase.from('options').insert([{ store_id: myStoreId.value, option_type: type, option_value: val }])
   quickCategory.value = ''; quickRole.value = ''
-  Toast.fire({ icon: 'success', title: 'เพิ่มตัวเลือกสำเร็จ' })
-  loadAllData()
+  Toast.fire({ icon: 'success', title: 'เพิ่มตัวเลือกสำเร็จ' }); loadAllData()
 }
-const deleteOption = async (opt) => {
-  const res = await Swal.fire({ title: 'ลบตัวเลือก?', text: opt.option_value, icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444' })
-  if (res.isConfirmed) { isLoading.value = true; await supabase.from('options').delete().eq('id', opt.id); Toast.fire({ icon: 'success', title: 'ลบสำเร็จ' }); loadAllData() }
-}
+const deleteOption = async (opt) => { const res = await Swal.fire({ title: 'ลบตัวเลือก?', text: opt.option_value, icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444' }); if (res.isConfirmed) { isLoading.value = true; await supabase.from('options').delete().eq('id', opt.id); Toast.fire({ icon: 'success', title: 'ลบสำเร็จ' }); loadAllData() } }
 
 onMounted(() => {
-  loadAllData()
+  const savedUser = JSON.parse(localStorage.getItem('rmpro_user'))
+  if (savedUser && savedUser.store_id) {
+    myStoreId.value = savedUser.store_id
+    loadAllData()
+  }
 })
 </script>
-
-<style scoped>
-.no-scrollbar::-webkit-scrollbar { display: none; }
-</style>
+<style scoped> .no-scrollbar::-webkit-scrollbar { display: none; } </style>
