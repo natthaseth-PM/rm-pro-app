@@ -94,6 +94,9 @@ let realtimeChannel = null
 const now = ref(new Date())
 let timerInterval = null
 
+// 🌟 สร้าง Audio Object และโหลดเสียงเตือนล่วงหน้า (ใช้ลิงก์ที่เสถียร)
+const alertSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+
 const fetchKitchenData = async () => {
   const { data: tData } = await supabase.from('tables').select('id, table_name')
   if (tData) {
@@ -155,12 +158,16 @@ const cancelItem = async (id) => {
   if (result.isConfirmed) updateStatus(id, 'Cancelled')
 }
 
-// 🔊 ฟังก์ชันเล่นเสียงแจ้งเตือน (Audio Alert)
+// 🔊 ฟังก์ชันเล่นเสียงแจ้งเตือน (Audio Alert) 🌟
 const playAudioAlert = () => {
   try {
-    // ใช้ไฟล์เสียงแจ้งเตือนมาตรฐาน
-    const audio = new Audio('https://www.soundjay.com/buttons/sounds/button-09.mp3')
-    audio.play().catch(e => console.log('Autoplay blocked by browser policy. Click anywhere on the screen first.'))
+    alertSound.currentTime = 0; // เล่นใหม่ตั้งแต่ต้นเสมอ (เผื่อเสียงเดิมยังเล่นไม่จบ)
+    const playPromise = alertSound.play();
+    if (playPromise !== undefined) {
+      playPromise.catch(error => {
+        console.log('Autoplay blocked:', error);
+      });
+    }
   } catch (err) {
     console.error('Audio error:', err)
   }
@@ -170,10 +177,9 @@ const playAudioAlert = () => {
 const setupRealtime = () => {
   realtimeChannel = supabase.channel('kitchen_kds')
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'order_details' }, (payload) => {
-       playAudioAlert() // 🔊 ร้องเตือน!
+       playAudioAlert() // 🔊 ร้องเตือนกริ๊งๆ!
        fetchKitchenData()
        
-       // เด้ง Toast สีแดงเตือนพ่อครัว
        Swal.fire({
          title: '🔔 ออเดอร์ใหม่เข้า!',
          text: payload.new.menu_name,
@@ -195,8 +201,23 @@ onMounted(() => {
   setupRealtime()
   timerInterval = setInterval(() => { now.value = new Date() }, 30000)
   
-  // แจ้งเตือนผู้ใช้ให้คลิกหน้าจอ 1 ครั้งเพื่อเปิดระบบเสียง (นโยบายของเบราว์เซอร์)
-  Swal.fire({ title: 'KDS พร้อมใช้งาน', text: 'คลิกที่ปุ่มตกลงเพื่อเปิดระบบเสียงแจ้งเตือนออเดอร์', icon: 'success', confirmButtonText: 'ตกลง', confirmButtonColor: '#10b981' })
+  // 🌟 บังคับให้ผู้ใช้คลิก 1 ครั้ง เพื่อปลดล็อกระบบเสียงของ Browser (Autoplay Policy Bypass)
+  Swal.fire({ 
+    title: 'KDS พร้อมใช้งาน', 
+    text: 'คลิกที่ปุ่ม "ตกลง" เพื่อเปิดระบบเสียงแจ้งเตือนออเดอร์', 
+    icon: 'success', 
+    confirmButtonText: 'ตกลง', 
+    confirmButtonColor: '#10b981',
+    allowOutsideClick: false
+  }).then(() => {
+    // แอบเล่นเสียงแบบเงียบๆ (Volume 0) 1 ครั้งเพื่อให้ Browser อนุญาตให้หน้าเว็บนี้ส่งเสียงได้ในอนาคต
+    alertSound.volume = 0;
+    alertSound.play().then(() => {
+      alertSound.pause();
+      alertSound.currentTime = 0;
+      alertSound.volume = 1; // ปรับเสียงกลับมาดังปกติ
+    }).catch(e => console.log('Silent play blocked', e));
+  });
 })
 
 onUnmounted(() => { 
