@@ -44,46 +44,55 @@ const router = createRouter({
   routes
 })
 
-// 🔐 ระบบ Route Guard (ตรวจสอบสิทธิ์ + บันทึก Log เงียบๆ)
+
 router.beforeEach(async (to, from, next) => {
   const savedUser = localStorage.getItem('rmpro_user')
   const user = savedUser ? JSON.parse(savedUser) : null
 
-  // 1. หน้าที่ไม่ต้อง Login
-  if (to.path === '/login' || to.path === '/customer') {
-    return next()
+  // 1. หน้าสาธารณะ
+  if (to.path === '/login' || to.path === '/customer') return next()
+
+  // 2. ตรวจสอบการ Login
+  if (!user) return next('/login')
+
+  // 3. ตรวจสอบแพ็กเกจและวันหมดอายุ (ดึงสดจาก Supabase เพื่อความชัวร์)
+  const { data: store } = await supabase
+    .from('stores')
+    .select('*')
+    .eq('id', user.store_id)
+    .single()
+
+  if (!store || store.subscription_status === 'Expired' || new Date(store.expires_at) < new Date()) {
+    // ถ้าหมดอายุ ให้แสดงแจ้งเตือน (หรือ redirect ไปหน้าชำระเงิน)
+    if (to.path !== '/expired') {
+      alert('ขออภัย แพ็กเกจของคุณหมดอายุแล้ว กรุณาติดต่อผู้ดูแลระบบ')
+      return next(false) 
+    }
   }
 
-  // 2. ถ้ายังไม่ Login
-  if (!user) {
-    return next('/login')
-  }
-
-  // 3. ตรวจสอบสิทธิ์ (Permissions)
+  // 4. ตรวจสอบสิทธิ์การเข้าถึงหน้า (Permissions) และสิทธิ์ตามแพ็กเกจ (Package Features)
   if (to.path !== '/login' && to.path !== '/customer') {
     const pageName = to.path.split('/')[1] || 'dashboard'
     const allowedPages = user.allowed_pages ? user.allowed_pages.split(',') : []
     
-    if (!allowedPages.includes(pageName)) {
-      
-      // แอบบันทึก Log ลงฐานข้อมูลเงียบๆ 
-      try {
-        await supabase.from('security_logs').insert([{
-          username: user.username,
-          attempted_url: to.path,
-          action: 'พยายามเข้าถึงหน้าที่ไม่มีสิทธิ์ หรือ URL ผิด'
-        }])
-      } catch (err) {
-        console.error('Log failed') 
-      }
+    // กำหนดหน้าเฉพาะของแพ็กเกจ Pro
+    const proPages = ['kitchen', 'reports'] 
+    const isProFeature = proPages.includes(pageName)
 
-      // ถ้าเขามีหน้าเก่าอยู่แล้ว ให้ยกเลิกการเปลี่ยนหน้า (อยู่หน้าเดิม)
-      if (from.path && from.path !== '/' && from.path !== '/login') {
-        return next(false) 
-      } else {
-        // เด้งไปหน้าแรกที่เขามีสิทธิ์
-        return next('/' + (allowedPages[0] || 'dashboard'))
-      }
+    // เงื่อนไข: ต้องมีสิทธิ์ใน User AND (ถ้าเป็นฟีเจอร์ Pro ร้านต้องเป็น Pro)
+    const hasUserRight = allowedPages.includes(pageName)
+    const hasPackageRight = isProFeature ? store.package_type === 'Pro' : true
+
+    if (!hasUserRight || !hasPackageRight) {
+      // บันทึก Log การพยายามเข้าถึง
+      await supabase.from('security_logs').insert([{
+        username: user.username,
+        store_id: user.store_id,
+        attempted_url: to.path,
+        action: !hasPackageRight ? 'พยายามใช้ฟีเจอร์ Pro ในแพ็กเกจ Standard' : 'ไม่มีสิทธิ์เข้าถึง'
+      }])
+      
+      return next('/' + (allowedPages[0] || 'dashboard'))
     }
   }
 

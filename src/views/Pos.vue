@@ -395,7 +395,11 @@ const loadSettings = async () => {
 
 const loadMenus = async () => {
   isLoadingMenus.value = true
-  const { data } = await supabase.from('menus').select('*').eq('status', 'Available')
+  const { data } = await supabase
+    .from('menus')
+    .select('*')
+    .eq('store_id', user.value.store_id) // 🌟 บังคับดึงเฉพาะร้านตัวเอง
+    .eq('status', 'Available')
   if (data) {
     menus.value = data
     if (availableCategories.value.length > 0) selectedCategory.value = availableCategories.value[0]

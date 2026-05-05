@@ -65,15 +65,31 @@ const menuItems = [
   { path: '/settings', title: 'ตั้งค่าระบบ', icon: 'fa-solid fa-cogs', permission: 'settings' },
 ]
 
-onMounted(() => {
+const storeInfo = ref(null)
+
+onMounted(async () => {
   const savedUser = localStorage.getItem('rmpro_user')
-  if (savedUser) user.value = JSON.parse(savedUser)
-  else router.push('/login')
+  if (savedUser) {
+    user.value = JSON.parse(savedUser)
+    // โหลดข้อมูลร้านเพื่อดูแพ็กเกจ
+    const { data } = await supabase.from('stores').select('*').eq('id', user.value.store_id).single()
+    storeInfo.value = data
+  } else {
+    router.push('/login')
+  }
 })
 
 const hasAccess = (permission) => {
-  if (!user.value || !user.value.allowed_pages) return false
-  return user.value.allowed_pages.split(',').includes(permission)
+  if (!user.value || !storeInfo.value) return false
+  
+  // 1. เช็คสิทธิ์รายบุคคล
+  const userHasRight = user.value.allowed_pages.split(',').includes(permission)
+  
+  // 2. เช็คสิทธิ์ตามแพ็กเกจ
+  const proFeatures = ['kitchen', 'reports']
+  const packageHasRight = proFeatures.includes(permission) ? storeInfo.value.package_type === 'Pro' : true
+
+  return userHasRight && packageHasRight
 }
 
 const handleLogout = () => {
