@@ -87,15 +87,18 @@ const router = useRouter()
 const tables = ref([])
 const activeOrders = ref([])
 const isLoading = ref(true)
-const myStoreId = ref(null) // 🌟 เก็บ ID ร้านค้า
+const myStoreId = ref(null) 
 let realtimeChannel = null
 
 const fetchData = async () => {
   if (!myStoreId.value) return
 
-  // 🌟 ดึงข้อมูลเฉพาะร้านตัวเอง
-  const { data: tData } = await supabase.from('tables').select('*').eq('store_id', myStoreId.value).order('table_name')
-  if (tData) tables.value = tData
+  const { data: tData } = await supabase.from('tables').select('*').eq('store_id', myStoreId.value)
+  if (tData) {
+    // 🌟 จัดเรียงโต๊ะแบบ Natural Sort (ให้เลข 2 มาก่อน 10) 🌟
+    tData.sort((a, b) => a.table_name.localeCompare(b.table_name, undefined, { numeric: true }))
+    tables.value = tData
+  }
 
   const { data: oData } = await supabase.from('orders').select('*').eq('store_id', myStoreId.value).eq('status', 'Open')
   if (oData) activeOrders.value = oData
@@ -118,7 +121,6 @@ const selectTable = (table) => {
   router.push({ path: '/pos', query: { table_id: table.id } })
 }
 
-// 🌟 เคลียร์การแจ้งเตือนพนักงาน
 const clearService = async (id) => {
   await supabase.from('tables').update({ service_request: null }).eq('id', id)
   fetchData()

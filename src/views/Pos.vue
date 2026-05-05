@@ -46,8 +46,7 @@
             </div>
             <i class="fa-solid fa-chevron-right text-gray-300 group-hover:text-primary"></i>
           </button>
-          
-          <button @click="generateQR" :disabled="!selectedTable || !isProPlan" class="w-16 bg-white border-2 border-dashed border-blue-200 hover:border-blue-500 text-blue-500 disabled:opacity-50 disabled:bg-gray-50 rounded-2xl flex flex-col items-center justify-center transition-all active:scale-95 shrink-0" :title="isProPlan ? 'QR โต๊ะ' : 'เฉพาะแพ็กเกจ Pro ขึ้นไป'">
+          <button @click="generateQR" :disabled="!selectedTable || !isProPlan" class="w-16 bg-white border-2 border-dashed border-blue-200 hover:border-blue-500 text-blue-500 disabled:opacity-50 disabled:bg-gray-50 rounded-2xl flex flex-col items-center justify-center transition-all active:scale-95 shrink-0" :title="isProPlan ? 'QR โต๊ะ' : 'เฉพาะแพ็กเกจ Pro'">
             <i class="fa-solid fa-qrcode text-lg mb-1"></i>
             <span class="text-[9px] font-black uppercase">QR โต๊ะ</span>
           </button>
@@ -341,7 +340,7 @@ const lastOrderForReceipt = ref(null)
 let posRealtimeChannel = null
 
 // Computed Categories & Menus
-const availableCategories = computed(() => [...new Set(menus.value.map(item => item.category))])
+const availableCategories = computed(() => ['All', ...new Set(menus.value.map(item => item.category))])
 const filteredMenus = computed(() => selectedCategory.value ? menus.value.filter(m => m.category === selectedCategory.value) : menus.value)
 
 // การคำนวณยอดเงิน (รวม)
@@ -396,6 +395,7 @@ const loadSettings = async () => {
   if (data) storeSettings.value = Object.fromEntries(data.map(item => [item.setting_key, item.setting_value]))
 }
 
+// 🌟 โหลดเมนู
 const loadMenus = async () => {
   isLoadingMenus.value = true
   const { data } = await supabase.from('menus').select('*').eq('store_id', myStoreId.value).eq('status', 'Available')
@@ -406,12 +406,17 @@ const loadMenus = async () => {
   isLoadingMenus.value = false
 }
 
+// 🌟 โหลดผังโต๊ะ พร้อมจัดเรียงแบบ Natural Sort 🌟
 const loadTables = async () => {
   isLoadingTables.value = true
-  const { data: tData } = await supabase.from('tables').select('*').eq('store_id', myStoreId.value).order('table_name')
+  // ดึงข้อมูลโต๊ะทั้งหมดของร้านมา
+  const { data: tData } = await supabase.from('tables').select('*').eq('store_id', myStoreId.value)
   const { data: oData } = await supabase.from('orders').select('table_id').eq('store_id', myStoreId.value).eq('status', 'Open')
   
   if (tData) {
+    // 🌟 จัดเรียงโต๊ะแบบเลข (2 มาก่อน 10) 🌟
+    tData.sort((a, b) => a.table_name.localeCompare(b.table_name, undefined, { numeric: true }))
+    
     tables.value = tData.map(t => {
       const isOccupied = oData && oData.some(o => o.table_id === t.id)
       return { ...t, status: isOccupied ? 'Occupied' : t.status }
@@ -438,12 +443,10 @@ const addToCart = (item) => {
   if (existing) existing.qty++
   else cart.value.push({ ...item, qty: 1 })
 }
-
 const updateQty = (index, val) => {
   cart.value[index].qty += val
   if (cart.value[index].qty <= 0) cart.value.splice(index, 1)
 }
-
 const openTableModal = () => { loadTables(); showTableModal.value = true }
 const selectTable = async (table) => { selectedTable.value = table; cart.value = []; await fetchTableOrder(table.id); showTableModal.value = false }
 
@@ -724,7 +727,6 @@ const printReceipt = () => {
   printToIframe(html)
 }
 
-// 🖨️ 🌟 พิมพ์ QR Code แบบ Iframe 🌟
 const printQR = (title, imgUrl) => {
   const html = `<html><head><title>Print QR</title><style>@page{margin:0;size:80mm auto;}body{font-family:'Kanit',sans-serif;width:80mm;margin:0 auto;padding:15px;text-align:center;color:#000;box-sizing:border-box;}h2{margin:0 0 5px 0;font-size:26px;font-weight:900;}p{margin:0 0 10px 0;font-size:16px;font-weight:bold;}.footer{margin-top:15px;border-top:2px dashed #000;padding-top:10px;font-size:14px;font-weight:bold;}</style><link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;700;900&display=swap" rel="stylesheet"></head><body><h2>RM Pro</h2><p>สั่งอาหารผ่านมือถือ</p><h2 style="font-size: 36px; border: 3px solid #000; padding: 5px; margin-top: 10px; border-radius: 10px;">${title}</h2><img src="${imgUrl}" style="width:220px;height:220px;margin:10px auto;display:block;" /><div class="footer">ขอบคุณที่ใช้บริการครับ</div></body></html>`
   printToIframe(html)
