@@ -36,7 +36,7 @@ const router = useRouter()
 const isLoggingIn = ref(false)
 const loginForm = ref({ username: '', password: '' })
 
-// 🔐 ฟังก์ชันเข้ารหัส SHA-256 (Pure JS - ทำงานได้ทั้ง HTTP และ HTTPS)
+// 🔐 ฟังก์ชันเข้ารหัสผ่าน (SHA-256 แบบ Pure JS) ทำงานได้ทั้ง IP และ Localhost
 const hashPassword = async (ascii) => {
   function rightRotate(value, amount) { return (value >>> amount) | (value << (32 - amount)); }
   const mathPow = Math.pow; const maxWord = mathPow(2, 32); let result = '', words = [], asciiBitLength = ascii.length * 8;
@@ -49,11 +49,9 @@ const hashPassword = async (ascii) => {
     }
     i++;
   }
-  ascii += '\x80';
-  while (ascii.length % 64 - 56) ascii += '\x00';
+  ascii += '\x80'; while (ascii.length % 64 - 56) ascii += '\x00';
   for (i = 0; i < ascii.length; i++) {
-    const j = ascii.charCodeAt(i);
-    if (j >> 8) return; words[i >> 2] |= j << ((3 - i) % 4) * 8;
+    const j = ascii.charCodeAt(i); words[i >> 2] |= j << ((3 - i) % 4) * 8;
   }
   words[words.length] = ((asciiBitLength / maxWord) | 0); words[words.length] = (asciiBitLength | 0);
   for (let j = 0; j < words.length; j += 16) {
@@ -76,8 +74,7 @@ const hashPassword = async (ascii) => {
   }
   for (i = 0; i < 8; i++) {
     for (let j = 3; j + 1; j--) {
-      const b = (hash[i] >> (j * 8)) & 255;
-      result += (b < 16 ? '0' : '') + b.toString(16);
+      const b = (hash[i] >> (j * 8)) & 255; result += (b < 16 ? '0' : '') + b.toString(16);
     }
   }
   return result;

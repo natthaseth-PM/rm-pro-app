@@ -21,7 +21,7 @@
               <td class="p-4">
                 <div class="font-black text-gray-900 text-lg">{{ store.store_name }}</div>
                 <div class="text-xs font-bold text-gray-500 mt-1"><i class="fa-solid fa-user text-gray-300 mr-1"></i> {{ store.contact_name || '-' }}</div>
-                <div class="text-[10px] font-mono text-gray-400 mt-1 bg-gray-100 px-2 py-0.5 rounded w-fit border border-gray-200">ID: {{ store.id }}</div>
+                <div class="text-[10px] font-mono text-gray-400 mt-1 bg-gray-100 px-2 py-0.5 rounded w-fit border border-gray-200" title="Store ID">ID: {{ store.id }}</div>
               </td>
               <td class="p-4 text-center"><span :class="store.package_type === 'Pro' ? 'bg-purple-100 text-purple-700 border-purple-200' : 'bg-gray-100 text-gray-600 border-gray-200'" class="px-3 py-1 rounded-full text-[10px] font-black uppercase border tracking-wider">{{ store.package_type }}</span></td>
               <td class="p-4 text-center">
@@ -34,10 +34,10 @@
                 <span v-else class="text-red-500 font-black text-[11px] uppercase tracking-wider"><i class="fa-solid fa-ban"></i> Suspended</span>
               </td>
               <td class="p-4 text-center">
-                <button @click="openStoreModal('edit', store)" class="w-10 h-10 bg-white border border-gray-200 hover:bg-blue-500 hover:border-blue-500 hover:text-blue-600 rounded-xl text-gray-500 transition-colors shadow-sm"><i class="fa-solid fa-pen"></i></button>
+                <button @click="openStoreModal('edit', store)" class="w-10 h-10 bg-white border border-gray-200 hover:bg-blue-50 hover:border-blue-500 hover:text-blue-600 rounded-xl text-gray-500 transition-colors shadow-sm" title="แก้ไขข้อมูลร้าน"><i class="fa-solid fa-pen"></i></button>
               </td>
               <td class="p-4 text-center">
-                <button @click="openStoreUsers(store)" class="px-4 py-2 bg-gray-900 hover:bg-black text-white font-bold rounded-xl text-xs transition-all active:scale-95 shadow-sm"><i class="fa-solid fa-users mr-1"></i> พนักงาน</button>
+                <button @click="openStoreUsers(store)" class="px-4 py-2 bg-gray-900 hover:bg-black text-white font-bold rounded-xl text-xs transition-colors shadow-sm active:scale-95"><i class="fa-solid fa-users mr-1"></i> พนักงาน</button>
               </td>
             </tr>
           </tbody>
@@ -67,7 +67,7 @@
       </div>
     </div>
 
-    <div v-if="showUsersModal" class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+    <div v-if="showUsersModal" class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4">
       <div class="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-3xl h-[85vh] flex flex-col overflow-hidden animate-[fadeIn_0.2s_ease-out]">
         <div class="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
           <div>
@@ -81,7 +81,7 @@
           <div class="flex justify-end mb-4"><button @click="openStoreUserForm('add')" class="bg-gray-900 hover:bg-black text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-md transition-all active:scale-95"><i class="fa-solid fa-user-plus mr-2"></i> สร้างบัญชีพนักงาน</button></div>
           <div class="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
             <table class="w-full text-left border-collapse">
-              <thead><tr class="bg-gray-50 text-gray-500 text-[10px] uppercase tracking-wider"><th class="p-4 font-bold">Username</th><th class="p-4 font-bold text-center">ตำแหน่ง</th><th class="p-4 font-bold">สิทธิ์การเข้าถึง</th><th class="p-4 font-bold text-center">จัดการ</th></tr></thead>
+              <thead><tr class="bg-gray-50 text-gray-500 text-[10px] uppercase tracking-widest"><th class="p-4 font-bold">Username</th><th class="p-4 font-bold text-center">ตำแหน่ง</th><th class="p-4 font-bold">สิทธิ์การเข้าถึง</th><th class="p-4 font-bold text-center">จัดการ</th></tr></thead>
               <tbody class="divide-y divide-gray-100">
                 <tr v-if="storeUsers.length === 0"><td colspan="4" class="text-center py-10 text-gray-400 font-bold">ยังไม่มีพนักงานในร้านนี้</td></tr>
                 <tr v-for="u in storeUsers" :key="u.id" class="hover:bg-gray-50 text-sm">
@@ -109,15 +109,15 @@
               <div><label class="block text-[11px] font-bold text-gray-500 mb-1 uppercase tracking-wider">ตำแหน่ง (Role)</label><input v-model="userForm.role" type="text" required placeholder="เช่น Admin, Cashier, Chef" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 outline-none font-bold"></div>
               
               <div class="bg-blue-50/50 p-5 rounded-2xl border border-blue-100">
-                <label class="block text-sm font-black text-blue-800 mb-3"><i class="fa-solid fa-lock-open mr-2"></i> สิทธิ์การเข้าถึงเมนู</label>
-                <div class="grid grid-cols-2 gap-3 text-sm font-bold text-blue-900">
-                  <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" v-model="userForm.allowed_pages" value="dashboard" class="w-4 h-4 accent-blue-600"> Dashboard</label>
-                  <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" v-model="userForm.allowed_pages" value="pos" class="w-4 h-4 accent-blue-600"> ระบบ POS</label>
-                  <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" v-model="userForm.allowed_pages" value="tables" class="w-4 h-4 accent-blue-600"> ผังโต๊ะรวม</label>
-                  <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" v-model="userForm.allowed_pages" value="kitchen" class="w-4 h-4 accent-blue-600"> ห้องครัว (KDS)</label>
-                  <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" v-model="userForm.allowed_pages" value="history" class="w-4 h-4 accent-blue-600"> ประวัติบิล</label>
-                  <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" v-model="userForm.allowed_pages" value="reports" class="w-4 h-4 accent-blue-600"> รายงานยอดขาย</label>
-                  <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" v-model="userForm.allowed_pages" value="settings" class="w-4 h-4 accent-blue-600"> ตั้งค่าระบบ</label>
+                <label class="block text-sm font-black text-blue-800 mb-3 tracking-tight"><i class="fa-solid fa-lock-open mr-2"></i> สิทธิ์การเข้าถึงเมนู</label>
+                <div class="grid grid-cols-2 gap-3 text-xs font-bold text-blue-900">
+                  <label class="flex items-center gap-2 cursor-pointer hover:text-blue-600 transition-colors"><input type="checkbox" v-model="userForm.allowed_pages" value="dashboard" class="w-4 h-4 accent-blue-600"> Dashboard</label>
+                  <label class="flex items-center gap-2 cursor-pointer hover:text-blue-600 transition-colors"><input type="checkbox" v-model="userForm.allowed_pages" value="pos" class="w-4 h-4 accent-blue-600"> ระบบ POS</label>
+                  <label class="flex items-center gap-2 cursor-pointer hover:text-blue-600 transition-colors"><input type="checkbox" v-model="userForm.allowed_pages" value="tables" class="w-4 h-4 accent-blue-600"> ผังโต๊ะรวม</label>
+                  <label class="flex items-center gap-2 cursor-pointer hover:text-blue-600 transition-colors"><input type="checkbox" v-model="userForm.allowed_pages" value="kitchen" class="w-4 h-4 accent-blue-600"> ห้องครัว (KDS)</label>
+                  <label class="flex items-center gap-2 cursor-pointer hover:text-blue-600 transition-colors"><input type="checkbox" v-model="userForm.allowed_pages" value="history" class="w-4 h-4 accent-blue-600"> ประวัติบิล</label>
+                  <label class="flex items-center gap-2 cursor-pointer hover:text-blue-600 transition-colors"><input type="checkbox" v-model="userForm.allowed_pages" value="reports" class="w-4 h-4 accent-blue-600"> รายงานยอดขาย</label>
+                  <label class="flex items-center gap-2 cursor-pointer hover:text-blue-600 transition-colors"><input type="checkbox" v-model="userForm.allowed_pages" value="settings" class="w-4 h-4 accent-blue-600"> ตั้งค่าระบบ</label>
                 </div>
               </div>
 
@@ -136,24 +136,68 @@ import { ref, onMounted } from 'vue'
 import { supabase } from '../supabase'
 import Swal from 'sweetalert2'
 
+// 🔐 ฟังก์ชันเข้ารหัสผ่าน (SHA-256 แบบ Pure JS) ทำงานได้ทั้ง IP และ Localhost
+const hashPassword = async (ascii) => {
+  function rightRotate(value, amount) { return (value >>> amount) | (value << (32 - amount)); }
+  const mathPow = Math.pow; const maxWord = mathPow(2, 32); let result = '', words = [], asciiBitLength = ascii.length * 8;
+  const hash = [], k = []; let primeCounter = 0, isPrime = [false]; let i = 2;
+  while (primeCounter < 64) {
+    if (!isPrime[i]) {
+      for (let j = i << 1; j < 311; j += i) isPrime[j] = true;
+      if (primeCounter < 8) hash[primeCounter] = (mathPow(i, 1 / 2) * maxWord) | 0;
+      k[primeCounter] = (mathPow(i, 1 / 3) * maxWord) | 0; primeCounter++;
+    }
+    i++;
+  }
+  ascii += '\x80'; while (ascii.length % 64 - 56) ascii += '\x00';
+  for (i = 0; i < ascii.length; i++) {
+    const j = ascii.charCodeAt(i); words[i >> 2] |= j << ((3 - i) % 4) * 8;
+  }
+  words[words.length] = ((asciiBitLength / maxWord) | 0); words[words.length] = (asciiBitLength | 0);
+  for (let j = 0; j < words.length; j += 16) {
+    const w = words.slice(j, j + 16); let oldHash = hash.slice(0);
+    for (i = 0; i < 64; i++) {
+      if (i >= 16) {
+        const s0 = rightRotate(w[i - 15], 7) ^ rightRotate(w[i - 15], 18) ^ (w[i - 15] >>> 3);
+        const s1 = rightRotate(w[i - 2], 17) ^ rightRotate(w[i - 2], 19) ^ (w[i - 2] >>> 10);
+        w[i] = (w[i - 16] + s0 + w[i - 7] + s1) | 0;
+      }
+      const ch = (hash[4] & hash[5]) ^ (~hash[4] & hash[6]);
+      const maj = (hash[0] & hash[1]) ^ (hash[0] & hash[2]) ^ (hash[1] & hash[2]);
+      const s0 = rightRotate(hash[0], 2) ^ rightRotate(hash[0], 13) ^ rightRotate(hash[0], 22);
+      const s1 = rightRotate(hash[4], 6) ^ rightRotate(hash[4], 11) ^ rightRotate(hash[4], 25);
+      const t1 = hash[7] + s1 + ch + k[i] + w[i]; const t2 = s0 + maj;
+      hash[7] = hash[6]; hash[6] = hash[5]; hash[5] = hash[4]; hash[4] = (hash[3] + t1) | 0;
+      hash[3] = hash[2]; hash[2] = hash[1]; hash[1] = hash[0]; hash[0] = (t1 + t2) | 0;
+    }
+    for (i = 0; i < 8; i++) hash[i] = (hash[i] + oldHash[i]) | 0;
+  }
+  for (i = 0; i < 8; i++) {
+    for (let j = 3; j + 1; j--) {
+      const b = (hash[i] >> (j * 8)) & 255; result += (b < 16 ? '0' : '') + b.toString(16);
+    }
+  }
+  return result;
+}
+
 const stores = ref([])
 const isLoading = ref(true)
 const isSubmitting = ref(false)
 const showModal = ref(false)
 const form = ref({})
 
+// จัดการ Users ของร้าน
 const showUsersModal = ref(false)
 const selectedStoreForUsers = ref(null)
 const storeUsers = ref([])
-const userView = ref('list') 
+const userView = ref('list')
 const userForm = ref({})
 const isSubmittingUser = ref(false)
 
 const loadStores = async () => {
   isLoading.value = true
   const { data, error } = await supabase.from('stores').select('*').order('created_at', { ascending: false })
-  if (error) Swal.fire('Error', 'ดึงข้อมูลไม่สำเร็จ', 'error')
-  else stores.value = data
+  if (data) stores.value = data
   isLoading.value = false
 }
 
@@ -188,7 +232,6 @@ const submitStore = async () => {
     
     let response;
     if (form.value.action === 'add') {
-      payload.id = crypto.randomUUID() 
       response = await supabase.from('stores').insert([payload])
     } else {
       if (!form.value.id) throw new Error("ID ร้านค้าไม่ถูกต้อง")
@@ -207,6 +250,7 @@ const submitStore = async () => {
   }
 }
 
+// 👥 --- ระบบพนักงานร้าน ---
 const openStoreUsers = async (store) => {
   if (!store || !store.id) { Swal.fire('Error', 'ไม่พบรหัสร้านค้า', 'error'); return }
   selectedStoreForUsers.value = store
@@ -242,14 +286,13 @@ const submitStoreUser = async () => {
       allowed_pages: userForm.value.allowed_pages.join(',') 
     }
     
-    // 🌟 ดึงข้อมูล Password มาตรงๆ ไม่เข้ารหัส 🌟
+    // 🔐 เข้ารหัสรหัสผ่านก่อนบันทึก
     if (userForm.value.password) {
-      payload.password = userForm.value.password
+      payload.password = await hashPassword(userForm.value.password)
     }
 
     let response;
     if (userForm.value.action === 'add') {
-      payload.id = crypto.randomUUID()
       response = await supabase.from('users').insert([payload])
     } else {
       if (!userForm.value.id) throw new Error("รหัสพนักงานไม่ถูกต้อง")

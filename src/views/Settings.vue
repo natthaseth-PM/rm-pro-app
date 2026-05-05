@@ -169,12 +169,48 @@ import Swal from 'sweetalert2'
 
 const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2500, timerProgressBar: true })
 
-// 🔐 ฟังก์ชันเข้ารหัสผ่าน (SHA-256)
-const hashPassword = async (password) => {
-  const msgBuffer = new TextEncoder().encode(password);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+// 🔐 ฟังก์ชันเข้ารหัสผ่าน (SHA-256 แบบ Pure JS) ทำงานได้ทั้ง IP และ Localhost
+const hashPassword = async (ascii) => {
+  function rightRotate(value, amount) { return (value >>> amount) | (value << (32 - amount)); }
+  const mathPow = Math.pow; const maxWord = mathPow(2, 32); let result = '', words = [], asciiBitLength = ascii.length * 8;
+  const hash = [], k = []; let primeCounter = 0, isPrime = [false]; let i = 2;
+  while (primeCounter < 64) {
+    if (!isPrime[i]) {
+      for (let j = i << 1; j < 311; j += i) isPrime[j] = true;
+      if (primeCounter < 8) hash[primeCounter] = (mathPow(i, 1 / 2) * maxWord) | 0;
+      k[primeCounter] = (mathPow(i, 1 / 3) * maxWord) | 0; primeCounter++;
+    }
+    i++;
+  }
+  ascii += '\x80'; while (ascii.length % 64 - 56) ascii += '\x00';
+  for (i = 0; i < ascii.length; i++) {
+    const j = ascii.charCodeAt(i); words[i >> 2] |= j << ((3 - i) % 4) * 8;
+  }
+  words[words.length] = ((asciiBitLength / maxWord) | 0); words[words.length] = (asciiBitLength | 0);
+  for (let j = 0; j < words.length; j += 16) {
+    const w = words.slice(j, j + 16); let oldHash = hash.slice(0);
+    for (i = 0; i < 64; i++) {
+      if (i >= 16) {
+        const s0 = rightRotate(w[i - 15], 7) ^ rightRotate(w[i - 15], 18) ^ (w[i - 15] >>> 3);
+        const s1 = rightRotate(w[i - 2], 17) ^ rightRotate(w[i - 2], 19) ^ (w[i - 2] >>> 10);
+        w[i] = (w[i - 16] + s0 + w[i - 7] + s1) | 0;
+      }
+      const ch = (hash[4] & hash[5]) ^ (~hash[4] & hash[6]);
+      const maj = (hash[0] & hash[1]) ^ (hash[0] & hash[2]) ^ (hash[1] & hash[2]);
+      const s0 = rightRotate(hash[0], 2) ^ rightRotate(hash[0], 13) ^ rightRotate(hash[0], 22);
+      const s1 = rightRotate(hash[4], 6) ^ rightRotate(hash[4], 11) ^ rightRotate(hash[4], 25);
+      const t1 = hash[7] + s1 + ch + k[i] + w[i]; const t2 = s0 + maj;
+      hash[7] = hash[6]; hash[6] = hash[5]; hash[5] = hash[4]; hash[4] = (hash[3] + t1) | 0;
+      hash[3] = hash[2]; hash[2] = hash[1]; hash[1] = hash[0]; hash[0] = (t1 + t2) | 0;
+    }
+    for (i = 0; i < 8; i++) hash[i] = (hash[i] + oldHash[i]) | 0;
+  }
+  for (i = 0; i < 8; i++) {
+    for (let j = 3; j + 1; j--) {
+      const b = (hash[i] >> (j * 8)) & 255; result += (b < 16 ? '0' : '') + b.toString(16);
+    }
+  }
+  return result;
 }
 
 const myStoreId = ref(null)
