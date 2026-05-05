@@ -50,8 +50,14 @@ const handleLogin = async () => {
       return
     }
 
-    // 🛑 ตรวจสอบสถานะร้านค้า (หมดอายุ หรือ โดนระงับ)
-    if (user.stores) {
+    // 🛑 ถ้า "ไม่ใช่" SuperAdmin ให้เช็คสถานะร้าน
+    if (user.role !== 'SuperAdmin') {
+      if (!user.stores) {
+        Swal.fire({ icon: 'error', title: 'บัญชีนี้ไม่ได้เชื่อมโยงกับร้านค้าใดๆ' })
+        isLoggingIn.value = false
+        return
+      }
+
       const expiresAt = new Date(user.stores.expires_at)
       const now = new Date()
       
@@ -71,7 +77,7 @@ const handleLogin = async () => {
     localStorage.setItem('rmpro_user', JSON.stringify(user))
     Swal.fire({ icon: 'success', title: `ยินดีต้อนรับ ${user.username}`, toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 })
     
-    // ถ้าเป็น SuperAdmin ให้ไปหน้าศูนย์บัญชาการ
+    // แยกทางเดิน
     if(user.role === 'SuperAdmin') router.push('/superadmin')
     else router.push('/dashboard') 
 

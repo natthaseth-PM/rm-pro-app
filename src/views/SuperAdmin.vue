@@ -12,7 +12,7 @@
       <div class="bg-white rounded-3xl shadow-sm border border-gray-200 overflow-hidden">
         <table class="w-full text-left">
           <thead class="bg-gray-100 text-gray-600 text-xs uppercase tracking-widest border-b border-gray-200">
-            <tr><th class="p-5 font-bold">ชื่อร้านค้า / ผู้ติดต่อ</th><th class="p-5 font-bold text-center">แพ็กเกจ</th><th class="p-5 font-bold text-center">วันหมดอายุ</th><th class="p-5 font-bold text-center">สถานะ</th><th class="p-5 font-bold text-center">จัดการ</th></tr>
+            <tr><th class="p-5 font-bold">ชื่อร้านค้า / ID</th><th class="p-5 font-bold text-center">แพ็กเกจ</th><th class="p-5 font-bold text-center">วันหมดอายุ</th><th class="p-5 font-bold text-center">สถานะ</th><th class="p-5 font-bold text-center">จัดการ</th></tr>
           </thead>
           <tbody class="divide-y divide-gray-100">
             <tr v-if="isLoading" class="text-center py-10"><td colspan="5"><i class="fa-solid fa-circle-notch fa-spin text-3xl text-gray-400"></i></td></tr>
@@ -20,7 +20,7 @@
             <tr v-for="store in stores" :key="store.id" class="hover:bg-gray-50 transition-colors">
               <td class="p-5">
                 <div class="font-black text-gray-900 text-lg">{{ store.store_name }}</div>
-                <div class="text-sm font-bold text-gray-500 mt-1"><i class="fa-solid fa-user mr-1"></i> {{ store.contact_name || '-' }} | <i class="fa-solid fa-phone mr-1"></i> {{ store.contact_phone || '-' }}</div>
+                <div class="text-[10px] font-mono text-gray-400 mt-1 bg-gray-100 px-2 py-1 rounded w-fit">ID: {{ store.id }}</div>
               </td>
               <td class="p-5 text-center"><span :class="store.package_type === 'Pro' ? 'bg-purple-100 text-purple-700 border-purple-200' : 'bg-gray-100 text-gray-600 border-gray-200'" class="px-3 py-1 rounded-full text-xs font-black uppercase border tracking-wider">{{ store.package_type }}</span></td>
               <td class="p-5 text-center">
@@ -47,10 +47,10 @@
         <form @submit.prevent="submitStore" class="space-y-4">
           <div><label class="block text-xs font-bold text-gray-500 mb-1 uppercase">ชื่อร้าน</label><input v-model="form.store_name" type="text" required class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 outline-none focus:border-blue-500 font-bold"></div>
           <div class="grid grid-cols-2 gap-4">
-            <div><label class="block text-xs font-bold text-gray-500 mb-1 uppercase">แพ็กเกจ</label><select v-model="form.package_type" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 outline-none font-bold"><option value="Standard">Standard</option><option value="Pro">Pro</option></select></div>
-            <div><label class="block text-xs font-bold text-gray-500 mb-1 uppercase">สถานะระบบ</label><select v-model="form.is_active" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 outline-none font-bold"><option :value="true">Active (เปิดใช้งาน)</option><option :value="false">Suspended (ระงับ)</option></select></div>
+            <div><label class="block text-xs font-bold text-gray-500 mb-1 uppercase">แพ็กเกจ</label><select v-model="form.package_type" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 outline-none font-bold cursor-pointer"><option value="Standard">Standard</option><option value="Pro">Pro</option></select></div>
+            <div><label class="block text-xs font-bold text-gray-500 mb-1 uppercase">สถานะระบบ</label><select v-model="form.is_active" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 outline-none font-bold cursor-pointer"><option :value="true">Active (เปิดใช้งาน)</option><option :value="false">Suspended (ระงับ)</option></select></div>
           </div>
-          <div><label class="block text-xs font-bold text-gray-500 mb-1 uppercase">วันหมดอายุ (Expiry Date)</label><input v-model="form.expires_at" type="date" required class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 outline-none font-bold"></div>
+          <div><label class="block text-xs font-bold text-gray-500 mb-1 uppercase">วันหมดอายุ (Expiry Date)</label><input v-model="form.expires_at" type="date" required class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 outline-none font-bold cursor-pointer"></div>
           <div class="border-t border-gray-100 pt-4 mt-4">
             <h4 class="text-sm font-black mb-3">ข้อมูลผู้ติดต่อ (Owner)</h4>
             <div class="space-y-3">
@@ -58,7 +58,7 @@
               <input v-model="form.contact_phone" type="text" placeholder="เบอร์โทร" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 outline-none font-bold text-sm">
             </div>
           </div>
-          <div class="flex gap-3 pt-4"><button type="button" @click="showModal = false" class="flex-1 py-3 bg-gray-100 rounded-xl font-bold text-gray-600 hover:bg-gray-200 transition-colors">ยกเลิก</button><button type="submit" class="flex-1 py-3 bg-blue-600 text-white rounded-xl font-black shadow-lg hover:bg-blue-700 transition-colors"><i class="fa-solid fa-save mr-2"></i> บันทึก</button></div>
+          <div class="flex gap-3 pt-4"><button type="button" @click="showModal = false" class="flex-1 py-3 bg-gray-100 rounded-xl font-bold text-gray-600 hover:bg-gray-200 transition-colors">ยกเลิก</button><button type="submit" :disabled="isSubmitting" class="flex-1 py-3 bg-blue-600 disabled:bg-blue-300 text-white rounded-xl font-black shadow-lg hover:bg-blue-700 transition-colors"><i v-if="isSubmitting" class="fa-solid fa-circle-notch fa-spin mr-2"></i><i v-else class="fa-solid fa-save mr-2"></i> บันทึก</button></div>
         </form>
       </div>
     </div>
@@ -72,13 +72,18 @@ import Swal from 'sweetalert2'
 
 const stores = ref([])
 const isLoading = ref(true)
+const isSubmitting = ref(false)
 const showModal = ref(false)
 const form = ref({})
 
 const loadStores = async () => {
   isLoading.value = true
-  const { data } = await supabase.from('stores').select('*').order('created_at', { ascending: false })
-  if (data) stores.value = data
+  const { data, error } = await supabase.from('stores').select('*').order('created_at', { ascending: false })
+  if (error) {
+    Swal.fire('Error', 'ดึงข้อมูลไม่สำเร็จ', 'error')
+  } else {
+    stores.value = data
+  }
   isLoading.value = false
 }
 
@@ -96,12 +101,39 @@ const openStoreModal = (action, store = null) => {
 }
 
 const submitStore = async () => {
-  const payload = { store_name: form.value.store_name, package_type: form.value.package_type, is_active: form.value.is_active, expires_at: form.value.expires_at, contact_name: form.value.contact_name, contact_phone: form.value.contact_phone }
-  if (form.value.action === 'add') await supabase.from('stores').insert([payload])
-  else await supabase.from('stores').update(payload).eq('id', form.value.id)
-  showModal.value = false
-  Swal.fire({ icon: 'success', title: 'บันทึกสำเร็จ', timer: 1500, showConfirmButton: false })
-  loadStores()
+  isSubmitting.value = true
+  try {
+    // 🌟 ดึงข้อมูลจากฟอร์ม โดยไม่มีคอลัมน์ id เลยในกรณี Add
+    const payload = { 
+      store_name: form.value.store_name, 
+      package_type: form.value.package_type, 
+      is_active: form.value.is_active, 
+      expires_at: form.value.expires_at, 
+      contact_name: form.value.contact_name, 
+      contact_phone: form.value.contact_phone 
+    }
+    
+    let error = null
+    
+    if (form.value.action === 'add') {
+      // 🌟 Supabase จะทำการรัน gen_random_uuid() ให้เองในฐานข้อมูลเมื่อเราไม่ส่ง id ไป
+      const res = await supabase.from('stores').insert([payload])
+      error = res.error
+    } else {
+      const res = await supabase.from('stores').update(payload).eq('id', form.value.id)
+      error = res.error
+    }
+
+    if (error) throw error
+
+    showModal.value = false
+    Swal.fire({ icon: 'success', title: 'บันทึกข้อมูลร้านค้าสำเร็จ', timer: 1500, showConfirmButton: false })
+    loadStores()
+  } catch (err) {
+    Swal.fire({ icon: 'error', title: 'บันทึกไม่สำเร็จ', text: err.message })
+  } finally {
+    isSubmitting.value = false
+  }
 }
 
 onMounted(() => loadStores())

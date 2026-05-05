@@ -1,7 +1,7 @@
 <template>
   <div class="flex flex-col h-screen w-full bg-gray-50 font-sans overflow-hidden">
     
-    <div v-if="daysLeft <= 30 && daysLeft > 0" class="bg-gradient-to-r from-orange-500 to-red-500 text-white px-4 py-2 text-center text-xs font-black tracking-wide shadow-md z-[100] shrink-0 flex items-center justify-center gap-2">
+    <div v-if="daysLeft <= 30 && daysLeft > 0 && user?.role !== 'SuperAdmin'" class="bg-gradient-to-r from-orange-500 to-red-500 text-white px-4 py-2 text-center text-xs font-black tracking-wide shadow-md z-[100] shrink-0 flex items-center justify-center gap-2">
       <i class="fa-solid fa-triangle-exclamation animate-bounce"></i>
       แพ็กเกจของคุณจะหมดอายุในอีก {{ daysLeft }} วัน กรุณาต่ออายุเพื่อใช้งานอย่างต่อเนื่อง (ติดต่อ Suwonp)
     </div>
@@ -16,12 +16,10 @@
         </div>
         
         <nav class="flex-1 py-6 flex flex-col gap-2 px-3 overflow-y-auto no-scrollbar">
-          <template v-for="menu in menuItems" :key="menu.path">
-            <router-link v-if="hasAccess(menu.permission)" :to="menu.path" class="flex items-center p-3 rounded-xl transition-all duration-200 w-full text-gray-400 hover:bg-gray-700 hover:text-white" active-class="bg-primary text-white shadow-md !text-white" :title="isCollapsed ? menu.title : ''">
-              <i :class="menu.icon" class="w-6 text-center text-lg shrink-0"></i>
-              <span :class="['ml-3 font-medium text-left flex-1 truncate transition-opacity', isCollapsed ? 'hidden' : 'hidden lg:block']">{{ menu.title }}</span>
-            </router-link>
-          </template>
+          <router-link v-for="menu in visibleMenuItems" :key="menu.path" :to="menu.path" class="flex items-center p-3 rounded-xl transition-all duration-200 w-full text-gray-400 hover:bg-gray-700 hover:text-white" active-class="bg-primary text-white shadow-md !text-white" :title="isCollapsed ? menu.title : ''">
+            <i :class="menu.icon" class="w-6 text-center text-lg shrink-0"></i>
+            <span :class="['ml-3 font-medium text-left flex-1 truncate transition-opacity', isCollapsed ? 'hidden' : 'hidden lg:block']">{{ menu.title }}</span>
+          </router-link>
         </nav>
         
         <div class="p-4 border-t border-gray-700 flex items-center justify-center lg:justify-between shrink-0">
@@ -29,7 +27,8 @@
             <div class="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center text-sm font-bold uppercase shrink-0">{{ user?.username?.charAt(0) || 'U' }}</div>
             <div :class="['ml-3 text-sm truncate', isCollapsed ? 'hidden' : 'hidden lg:block']">
               <p class="font-bold text-white capitalize">{{ user?.username || 'Guest' }}</p>
-              <p class="text-primary text-[10px] font-black uppercase tracking-wider">{{ storeInfo?.package_type || 'STANDARD' }} PLAN</p>
+              <p v-if="user?.role === 'SuperAdmin'" class="text-yellow-400 text-[10px] font-black uppercase tracking-wider">SYSTEM ADMIN</p>
+              <p v-else class="text-primary text-[10px] font-black uppercase tracking-wider">{{ storeInfo?.package_type || 'STANDARD' }} PLAN</p>
             </div>
           </div>
           <button @click="handleLogout" :class="['w-8 h-8 rounded-lg bg-gray-800 hover:bg-red-500 hover:text-white items-center justify-center text-gray-400 transition-colors shrink-0', isCollapsed ? 'hidden' : 'hidden lg:flex']" title="ออกจากระบบ"><i class="fa-solid fa-power-off"></i></button>
@@ -57,7 +56,7 @@ const user = ref(null)
 const storeInfo = ref(null)
 const isCollapsed = ref(false)
 
-const menuItems = [
+const allMenuItems = [
   { path: '/dashboard', title: 'Dashboard', icon: 'fa-solid fa-chart-pie', permission: 'dashboard' },
   { path: '/pos', title: 'POS (รับออเดอร์)', icon: 'fa-solid fa-cash-register', permission: 'pos' },
   { path: '/tables', title: 'ผังโต๊ะรวม', icon: 'fa-solid fa-border-all', permission: 'tables' },
@@ -65,8 +64,15 @@ const menuItems = [
   { path: '/history', title: 'ประวัติบิล', icon: 'fa-solid fa-clock-rotate-left', permission: 'history' },
   { path: '/reports', title: 'รายงาน', icon: 'fa-solid fa-chart-line', permission: 'reports' },
   { path: '/settings', title: 'ตั้งค่าระบบ', icon: 'fa-solid fa-cogs', permission: 'settings' },
-  { path: '/superadmin', title: 'Super Admin', icon: 'fa-solid fa-chess-king', permission: 'superadmin' }, // 🌟 เพิ่มเมนู Super Admin
 ]
+
+// 🌟 กรองเมนูให้ตรงกับสิทธิ์ (SuperAdmin จะเห็นแค่ Super Admin)
+const visibleMenuItems = computed(() => {
+  if (user.value?.role === 'SuperAdmin') {
+    return [{ path: '/superadmin', title: 'Super Admin', icon: 'fa-solid fa-chess-king', permission: 'superadmin' }]
+  }
+  return allMenuItems.filter(m => hasAccess(m.permission))
+})
 
 const daysLeft = computed(() => {
   if (!storeInfo.value?.expires_at) return 999;
@@ -77,8 +83,10 @@ onMounted(async () => {
   const savedUser = localStorage.getItem('rmpro_user')
   if (savedUser) {
     user.value = JSON.parse(savedUser)
-    const { data } = await supabase.from('stores').select('*').eq('id', user.value.store_id).single()
-    if (data) storeInfo.value = data
+    if (user.value.store_id) {
+      const { data } = await supabase.from('stores').select('*').eq('id', user.value.store_id).single()
+      if (data) storeInfo.value = data
+    }
   } else {
     router.push('/login')
   }
@@ -86,13 +94,9 @@ onMounted(async () => {
 
 const hasAccess = (permission) => {
   if (!user.value || !storeInfo.value) return false
-  
-  if (permission === 'superadmin') return user.value.role === 'SuperAdmin' // ซ่อนเมนูนี้ถ้าไม่ใช่คุณ
-
   const userHasRight = user.value.allowed_pages?.split(',').includes(permission)
   const proFeatures = ['kitchen', 'reports']
   const packageHasRight = proFeatures.includes(permission) ? storeInfo.value.package_type === 'Pro' : true
-
   return userHasRight && packageHasRight
 }
 
