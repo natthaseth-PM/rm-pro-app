@@ -483,13 +483,25 @@ const sendOrderToKitchen = async () => {
     await supabase.from('tables').update({ status: 'Occupied' }).eq('id', selectedTable.value.id)
     selectedTable.value.status = 'Occupied'
 
-    const details = cart.value.map(item => ({ store_id: myStoreId.value, order_id: orderId, menu_id: item.id, menu_name: item.menu_name, price: item.price, quantity: item.qty, total_price: item.price * item.qty, kitchen_status: 'Pending' }))
+    // 🌟 🌟 🌟 จุดที่แก้ไข: จัดการสถานะอัตโนมัติสำหรับ Standard Plan 🌟 🌟 🌟
+    const details = cart.value.map(item => ({ 
+      store_id: myStoreId.value, 
+      order_id: orderId, 
+      menu_id: item.id, 
+      menu_name: item.menu_name, 
+      price: item.price, 
+      quantity: item.qty, 
+      total_price: item.price * item.qty, 
+      // ถ้าไม่ใช่ Pro Plan ให้สถานะเป็น Done ทันที เพื่อไม่ให้ออเดอร์ค้างในระบบ
+      kitchen_status: isProPlan.value ? 'Pending' : 'Done' 
+    }))
+    
     await supabase.from('order_details').insert(details)
 
     await fetchTableOrder(selectedTable.value.id)
     cart.value = []
     
-    Swal.fire({ icon: 'success', title: 'ส่งเข้าครัวเรียบร้อย!', toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 });
+    Swal.fire({ icon: 'success', title: 'ส่งออเดอร์เรียบร้อย!', toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 });
 
   } catch (error) { Swal.fire('ผิดพลาด', 'ไม่สามารถส่งออเดอร์ได้', 'error') } finally { isSubmitting.value = false }
 }
@@ -578,70 +590,144 @@ const submitPayment = async () => {
   }
 }
 
+// 🖨️ 🌟 ฟังก์ชันพิมพ์ใบเสร็จลูกค้า
 const printReceipt = () => {
   if (!lastOrderForReceipt.value) return
   const order = lastOrderForReceipt.value
   
-  const storeName = storeSettings.value.StoreName || 'RM Pro POS'
-  const branchName = storeSettings.value.Branch ? `สาขา ${storeSettings.value.Branch}` : ''
-  const address = storeSettings.value.Address || ''
-  const phone = storeSettings.value.Phone ? `โทร: ${storeSettings.value.Phone}` : ''
-  const taxId = storeSettings.value.TaxID ? `TAX ID: ${storeSettings.value.TaxID}` : ''
+  const storeName = storeSettings.value.StoreName || 'RM Pro'
   const footerText = storeSettings.value.FooterText || 'ขอขอบคุณที่ใช้บริการ'
   
-  let itemsHtml = ''
-  order.items.forEach(item => {
-    itemsHtml += `
-      <div style="display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 5px;">
-        <div>${item.menu_name} <span style="color: #9ca3af; font-size: 12px; margin-left: 4px;">x${item.quantity}</span></div>
-        <div style="font-family: monospace;">${Number(item.price * item.quantity).toLocaleString(undefined, {minimumFractionDigits: 2})}</div>
+  // จัดฟอร์แมตรายการอาหารให้เหมือนหน้า Modal
+  let itemsHtml = order.items.map(item => `
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; font-size: 14px; font-weight: bold; color: #4a4a5a; margin-bottom: 12px;">
+      <div style="padding-right: 8px; line-height: 1.2;">
+        ${item.menu_name} 
+        <span style="color: #9ca3af; font-size: 12px; margin-left: 4px; font-weight: 500;">x${item.quantity}</span>
       </div>
-    `
-  })
-
-  const discountHtml = order.discount > 0 ? `<div style="display: flex; justify-content: space-between; font-size: 12px; color: #ea580c; margin-bottom: 5px;"><span>ส่วนลด:</span><span>-${Number(order.discount).toLocaleString(undefined, {minimumFractionDigits: 2})}</span></div>` : '';
+      <div style="font-family: monospace; flex-shrink: 0;">
+        ${Number(item.price * item.quantity).toLocaleString(undefined, {minimumFractionDigits: 2})}
+      </div>
+    </div>
+  `).join('')
 
   const html = `
-    <html><head><title>Print Receipt</title>
-    <style>
-      @page { margin: 0; size: 80mm auto; }
-      body { font-family: 'Prompt', sans-serif; width: 80mm; margin: 0 auto; padding: 15px; color: #1f2937; box-sizing: border-box; }
-      .text-center { text-align: center; }
-      .font-black { font-weight: 900; }
-      .font-bold { font-weight: bold; }
-      .mb-5 { margin-bottom: 15px; }
-      .border-dashed { border-top: 1.5px dashed #d1d5db; margin: 12px 0; }
-      .text-dark { color: #111827; }
-    </style>
-    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;700;900&display=swap" rel="stylesheet">
-    </head><body>
-      <div class="text-center mb-5">
-        <div class="font-black text-xl text-dark">${storeName}</div>
-        <div class="font-bold text-xs">${branchName}</div>
-        <div class="text-[10px] mt-1 text-gray-600">${address}</div>
-        <div class="text-[10px]">${phone}</div>
-        <div class="text-[10px]">${taxId}</div>
+    <html>
+    <head>
+      <title>Print Receipt</title>
+      <style>
+        @page { margin: 0; size: 80mm auto; }
+        body { 
+          font-family: 'Prompt', sans-serif; 
+          width: 80mm; 
+          margin: 0 auto; 
+          padding: 20px 15px; 
+          color: #1a1a2e; 
+          box-sizing: border-box; 
+        }
+        .text-center { text-align: center; }
+        .font-mono { font-family: monospace; }
+        
+        /* สไตล์เส้นคั่นแบบต่างๆ ตาม Modal */
+        .divider-dotted { border-top: 2px dotted #e5e7eb; margin: 20px 0; }
+        .divider-solid { border-top: 2px solid #1f2937; margin: 20px 0; }
+        
+        /* สไตล์ส่วนข้อมูลบิล */
+        .info-row { 
+          display: flex; 
+          justify-content: space-between; 
+          margin-bottom: 8px; 
+          font-size: 14px; 
+          font-weight: 700; 
+          color: #4a4a5a; 
+          gap: 12px; 
+        }
+        .info-val { color: #1a1a2e; }
+        
+        /* สไตล์สรุปยอด */
+        .total-row { 
+          display: flex; 
+          justify-content: space-between; 
+          align-items: flex-end; 
+          margin-bottom: 12px; 
+          font-size: 20px; 
+          font-weight: 900; 
+          color: #1a1a2e; 
+        }
+        .sub-total-row { 
+          display: flex; 
+          justify-content: space-between; 
+          font-size: 12px; 
+          font-weight: 700; 
+          margin-bottom: 4px; 
+        }
+      </style>
+      <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;700;900&display=swap" rel="stylesheet">
+    </head>
+    <body>
+      
+      <!-- ส่วนหัว -->
+      <div class="text-center" style="margin-bottom: 24px;">
+        <h3 style="font-weight: 900; font-size: 24px; margin: 0 0 4px 0; color: #1a1a2e;">${storeName}</h3>
+        <p style="font-size: 12px; font-weight: 700; color: #6b7280; margin: 0;">ใบเสร็จรับเงิน</p>
       </div>
-      <div class="text-center font-bold text-xs bg-gray-100 py-1 rounded">ใบเสร็จรับเงิน / Receipt</div>
-      <div class="border-dashed"></div>
-      <div class="text-xs font-bold mb-5 space-y-1">
-        <div style="display: flex; justify-content: space-between;"><span>เลขที่:</span><span style="font-family: monospace;">INV-${order.id.split('-')[0].toUpperCase()}</span></div>
-        <div style="display: flex; justify-content: space-between;"><span>โต๊ะ:</span><span class="text-dark">${order.table_name}</span></div>
-        <div style="display: flex; justify-content: space-between;"><span>เวลา:</span><span class="text-dark">${new Date(order.created_at).toLocaleString('th-TH')}</span></div>
-        <div style="display: flex; justify-content: space-between;"><span>ชำระโดย:</span><span class="text-dark">${order.payment_method}</span></div>
+      
+      <div class="divider-dotted"></div>
+      
+      <!-- ข้อมูลบิลและโต๊ะ -->
+      <div style="margin-bottom: 20px;">
+        <div class="info-row">
+          <span>เลขที่:</span>
+          <span class="font-mono info-val">INV-${order.id.split('-')[0].toUpperCase()}</span>
+        </div>
+        <div class="info-row">
+          <span>โต๊ะ:</span>
+          <span class="info-val">${order.table_name || 'ไม่ระบุ'}</span>
+        </div>
+        <div class="info-row">
+          <span>เวลาจ่าย:</span>
+          <span class="info-val">${new Date(order.created_at).toLocaleString('th-TH')}</span>
+        </div>
+        <div class="info-row">
+          <span>ชำระโดย:</span>
+          <span class="info-val">${order.payment_method || (order.payment_method === 'Cash' ? 'เงินสด' : 'โอนเงิน')}</span>
+        </div>
       </div>
-      <div class="border-dashed"></div>
-      <div class="font-bold mb-5 min-h-[50px]">${itemsHtml}</div>
-      <div class="border-dashed"></div>
-      <div class="font-bold mb-5">
-        ${discountHtml}
-        <div style="display: flex; justify-content: space-between; font-size: 18px; font-weight: 900; color: #111827; margin-bottom: 8px;"><span>ยอดสุทธิ (฿):</span><span>${Number(order.total_amount).toLocaleString(undefined, {minimumFractionDigits: 2})}</span></div>
-        <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px;"><span>รับเงินมา:</span><span style="font-family: monospace;">${Number(order.received_amount).toLocaleString(undefined, {minimumFractionDigits: 2})}</span></div>
-        <div style="display: flex; justify-content: space-between; font-size: 12px;"><span>เงินทอน:</span><span style="font-family: monospace;">${Number(order.change_amount).toLocaleString(undefined, {minimumFractionDigits: 2})}</span></div>
+      
+      <div class="divider-dotted"></div>
+      
+      <!-- รายการอาหาร -->
+      <div style="min-height: 80px; margin-bottom: 20px;">
+        ${itemsHtml}
       </div>
-      <div class="border-dashed"></div>
-      <div class="text-center text-[10px] font-bold mt-5 text-gray-500">${footerText}</div>
-    </body></html>
+      
+      <div class="divider-solid"></div>
+      
+      <!-- สรุปยอดเงิน -->
+      <div style="margin-bottom: 24px;">
+        <div class="total-row">
+          <span>ยอดสุทธิ (฿):</span>
+          <span>${Number(order.total_amount || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+        </div>
+        <div class="sub-total-row" style="color: #6b7280;">
+          <span>รับเงินมา:</span>
+          <span class="font-mono">${Number(order.received_amount || order.total_amount || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+        </div>
+        <div class="sub-total-row" style="color: #ea580c;">
+          <span>เงินทอน:</span>
+          <span class="font-mono">${Number(order.change_amount || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+        </div>
+      </div>
+      
+      <div class="divider-dotted"></div>
+      
+      <!-- ข้อความลงท้าย -->
+      <div class="text-center" style="font-size: 12px; font-weight: 700; color: #9ca3af;">
+        ${footerText}
+      </div>
+      
+    </body>
+    </html>
   `
   printToIframe(html)
 }

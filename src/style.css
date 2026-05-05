@@ -4,17 +4,12 @@
   --font-sans: 'Prompt', sans-serif;
 }
 
+/* 🌟 แก้ไข: ลบ !important ออก และไม่ต้องบังคับ font-family ที่นี่ 🌟 */
 body {
-  font-family: 'Prompt', sans-serif !important;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
 }
 
-/* ซ่อน Scrollbar ให้ดูคลีน แต่ยังเลื่อนได้ */
 .no-scrollbar::-webkit-scrollbar {
   display: none;
-}
-.no-scrollbar {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
 }
